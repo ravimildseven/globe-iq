@@ -5,7 +5,17 @@ import { NewsArticle } from "@/lib/types";
 import {
   ExternalLink, Clock, Newspaper, Zap, RefreshCw,
   Wifi, WifiOff, AlertTriangle, CheckCircle2, Info,
+  ChevronDown,
 } from "lucide-react";
+
+// ─── Source options ───────────────────────────────────────────────────────────
+type PreferSource = "auto" | "gnews" | "rss";
+
+const SOURCE_OPTIONS: { value: PreferSource; label: string; sublabel: string }[] = [
+  { value: "auto",   label: "Auto",              sublabel: "GNews → RSS fallback"    },
+  { value: "gnews",  label: "GNews API",          sublabel: "Rich · 12h delay (free)" },
+  { value: "rss",    label: "Google News",        sublabel: "Real-time · No key needed" },
+];
 
 // ─── Category definitions ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -43,6 +53,76 @@ function timeAgo(dateStr: string): string {
 function isRecent(dateStr: string): boolean {
   if (!dateStr) return false;
   return Date.now() - new Date(dateStr).getTime() < 3_600_000; // < 1h
+}
+
+// ─── Source selector dropdown ─────────────────────────────────────────────────
+function SourceDropdown({
+  value,
+  onChange,
+}: {
+  value: PreferSource;
+  onChange: (v: PreferSource) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = SOURCE_OPTIONS.find((o) => o.value === value)!;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-all ${
+          open
+            ? "bg-bg-elevated border-accent-amber/30 text-text-primary"
+            : "bg-bg-card border-border-subtle text-text-muted hover:text-text-secondary hover:border-border"
+        }`}
+      >
+        <span className="font-medium">{current.label}</span>
+        <ChevronDown
+          size={11}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+          />
+          {/* Menu */}
+          <div className="absolute right-0 top-9 z-50 w-52 rounded-xl bg-bg-card border border-border shadow-xl shadow-black/60 overflow-hidden">
+            <div className="px-3 py-2 border-b border-border-subtle">
+              <p className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+                News Source
+              </p>
+            </div>
+            {SOURCE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-bg-elevated ${
+                  value === opt.value ? "bg-accent-amber/8" : ""
+                }`}
+              >
+                <div>
+                  <p className={`text-xs font-medium ${
+                    value === opt.value ? "text-accent-amber" : "text-text-primary"
+                  }`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-[10px] text-text-muted mt-0.5">{opt.sublabel}</p>
+                </div>
+                {value === opt.value && (
+                  <CheckCircle2 size={13} className="text-accent-amber flex-shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
@@ -312,6 +392,7 @@ export default function NewsTab({
   countryName: string;
 }) {
   const [activeCategory, setActiveCategory] = useState("general");
+  const [preferSource, setPreferSource]     = useState<PreferSource>("auto");
   const [response, setResponse]             = useState<NewsResponse | null>(null);
   const [loading, setLoading]               = useState(true);
   const [showStatus, setShowStatus]         = useState(false);
@@ -319,12 +400,13 @@ export default function NewsTab({
   const fetchNews = useCallback(() => {
     setLoading(true);
     setResponse(null);
-    fetch(`/api/news?country=${encodeURIComponent(countryName)}&category=${activeCategory}`)
+    const url = `/api/news?country=${encodeURIComponent(countryName)}&category=${activeCategory}&prefer=${preferSource}`;
+    fetch(url)
       .then(r => r.json())
       .then(setResponse)
       .catch(() => setResponse(null))
       .finally(() => setLoading(false));
-  }, [countryName, activeCategory]);
+  }, [countryName, activeCategory, preferSource]);
 
   useEffect(() => { fetchNews(); }, [fetchNews]);
 
@@ -338,27 +420,34 @@ export default function NewsTab({
   return (
     <div className="space-y-3">
 
-      {/* ── Category filter pills ── */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-              activeCategory === cat.id
-                ? "bg-accent-amber/15 border-accent-amber/40 text-accent-amber"
-                : "bg-bg-card border-border-subtle text-text-muted hover:text-text-secondary"
-            }`}
-          >
-            <span>{cat.emoji}</span>
-            {cat.label}
-          </button>
-        ))}
+      {/* ── Row 1: Category pills + Source dropdown ── */}
+      <div className="flex items-center gap-2">
+        {/* Scrollable pills */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0 scrollbar-hide flex-1 min-w-0">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                activeCategory === cat.id
+                  ? "bg-accent-amber/15 border-accent-amber/40 text-accent-amber"
+                  : "bg-bg-card border-border-subtle text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              <span className="text-[11px]">{cat.emoji}</span>
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Source dropdown — always visible on the right */}
+        <div className="flex-shrink-0">
+          <SourceDropdown value={preferSource} onChange={setPreferSource} />
+        </div>
       </div>
 
-      {/* ── Status bar ── */}
+      {/* ── Row 2: Live status + source badge + refresh + verify ── */}
       <div className="flex items-center justify-between">
-        {/* Live dot + count */}
         <div className="flex items-center gap-1.5">
           <span className={`relative w-1.5 h-1.5 rounded-full pulse-dot ${
             rateLimited ? "bg-accent-amber" : "bg-accent-green"
@@ -368,7 +457,6 @@ export default function NewsTab({
           </span>
         </div>
 
-        {/* Right side — source badge + refresh + verify */}
         <div className="flex items-center gap-2">
           {!loading && response && (
             <SourceBadge
@@ -382,7 +470,7 @@ export default function NewsTab({
           <button
             onClick={fetchNews}
             className="text-text-muted hover:text-text-primary transition-colors"
-            title="Refresh news"
+            title="Refresh"
           >
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
           </button>
@@ -393,7 +481,6 @@ export default function NewsTab({
                 ? "bg-accent-indigo/15 border-accent-indigo/30 text-accent-indigo"
                 : "bg-bg-card border-border-subtle text-text-muted hover:text-text-secondary"
             }`}
-            title="Verify API sources"
           >
             Verify
           </button>
