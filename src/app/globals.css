@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  /* Financial Dashboard + HUD Palette */
+  --color-bg-primary: #020617;
+  --color-bg-card: #0E1223;
+  --color-bg-elevated: #1A1E2F;
+  --color-bg-hover: #232840;
+
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+
+  --color-border: #334155;
+  --color-border-subtle: #1E293B;
+
+  --color-accent-blue: #3B82F6;
+  --color-accent-cyan: #22D3EE;
+  --color-accent-green: #22C55E;
+  --color-accent-red: #EF4444;
+  --color-accent-amber: #F59E0B;
+  --color-accent-purple: #A855F7;
+
+  --color-hud-glow: rgba(59, 130, 246, 0.15);
+  --color-hud-border: rgba(59, 130, 246, 0.3);
+
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-card);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Globe canvas cursor */
+canvas {
+  cursor: grab;
+}
+canvas:active {
+  cursor: grabbing;
+}
+
+/* Tab animations */
+.tab-indicator {
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Panel slide */
+.panel-enter {
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Pulse for live indicators */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.pulse-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* HUD glow on cards */
+.card-glow {
+  box-shadow: 0 0 0 1px var(--color-hud-border), 0 0 20px var(--color-hud-glow);
+}
