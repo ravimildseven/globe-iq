@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight } from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
-import { TabId, CountryInfo, NewsArticle, EconomyData, ConflictData } from "@/lib/types";
+import { TabId, CountryInfo, EconomyData, ConflictData } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { economyDatabase } from "@/lib/economy-data";
 import GeneralTab from "./tabs/GeneralTab";
@@ -26,9 +26,7 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
 export default function InfoPanel({ country, onClose }: InfoPanelProps) {
   const [activeTab, setActiveTab]       = useState<TabId>("general");
   const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
-  const [news, setNews]                 = useState<NewsArticle[]>([]);
   const [loadingInfo, setLoadingInfo]   = useState(true);
-  const [loadingNews, setLoadingNews]   = useState(false);
   const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
@@ -85,17 +83,6 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
       )
       .finally(() => setLoadingInfo(false));
   }, [country]);
-
-  /* ── Fetch news on tab switch ── */
-  useEffect(() => {
-    if (activeTab !== "news") return;
-    setLoadingNews(true);
-    fetch(`/api/news?country=${encodeURIComponent(country.name)}`)
-      .then(r => r.json())
-      .then(d => setNews(d.articles || []))
-      .catch(() => setNews([]))
-      .finally(() => setLoadingNews(false));
-  }, [activeTab, country.name]);
 
   /* ── Sliding tab indicator ── */
   useEffect(() => {
@@ -234,7 +221,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
           style={{ background: "linear-gradient(180deg, #0B1120 0%, #020617 100%)" }}
         >
           {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
-          {activeTab === "news"      && <NewsTab       articles={news}     loading={loadingNews}  countryName={country.name} />}
+          {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
           {activeTab === "economy"   && <EconomyTab    data={economy}      countryName={country.name} />}
           {activeTab === "conflicts" && <ConflictsTab  conflicts={conflicts} countryName={country.name} />}
         </div>
