@@ -26,6 +26,28 @@ interface NewsResponse {
 let gnewsRateLimitedUntil = 0;
 function isGNewsRateLimited() { return Date.now() < gnewsRateLimitedUntil; }
 
+// ─── RSS image helper ─────────────────────────────────────────────────────────
+// Google News RSS carries zero image data. Its article links are opaque Google
+// redirect URLs that resolve only in a real browser via client-side JavaScript —
+// server-side fetches get a JS app shell with no og:image accessible.
+//
+// We extract the publisher domain from the <source url="..."> attribute and use
+// Google's high-res social favicon service (up to 256 px) to display the
+// publisher's logo as the card image.  This is zero-latency, always available,
+// and looks sharp for major outlets (BBC, Reuters, Bloomberg, AP, etc.).
+function rssPublisherImageUrl(item: string): string | undefined {
+  // <source url="https://www.bbc.com">BBC</source>
+  const m = item.match(/<source[^>]+url=["']([^"']+)["']/i);
+  if (!m?.[1]) return undefined;
+  try {
+    const domain = new URL(m[1]).hostname;
+    // Google's social favicon service — returns actual publisher logos at 256 px
+    return `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`;
+  } catch {
+    return undefined;
+  }
+}
+
 // ─── Category → search keywords ───────────────────────────────────────────────
 // These are embedded INTO the search query so both GNews /search
 // and Google News RSS actually filter — instead of a silently-ignored ?topic= param.
@@ -130,15 +152,13 @@ async function fetchGoogleNewsRss(country: string, category: string): Promise<Ar
 
     return items
       .map((item): Article => {
-        const title   = stripCdata(between(item, "title"));
-        const link    = between(item, "link");
-        const pubDate = between(item, "pubDate");
-        const source  = stripCdata(between(item, "source"));
-        const desc    = stripHtml(stripCdata(between(item, "description")));
-        const imgMatch = item.match(/url=["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i);
-        const imageUrl = imgMatch
-          ? `/api/proxy-image?url=${encodeURIComponent(imgMatch[1])}`
-          : undefined;
+        const title    = stripCdata(between(item, "title"));
+        const link     = between(item, "link");
+        const pubDate  = between(item, "pubDate");
+        const source   = stripCdata(between(item, "source"));
+        const desc     = stripHtml(stripCdata(between(item, "description")));
+        // Publisher logo via Google's social favicon service (zero latency, sharp logos)
+        const imageUrl = rssPublisherImageUrl(item);
         return {
           title:       title.replace(/\s+-\s+[^-]+$/, "").trim(),
           summary:     desc.slice(0, 220),
