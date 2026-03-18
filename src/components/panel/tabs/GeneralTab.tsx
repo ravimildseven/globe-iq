@@ -20,15 +20,17 @@ function fmt(n: number) {
 
 /* ── Live clock widget ────────────────────────────────────── */
 function LocalClock({ countryCode }: { countryCode: string }) {
-  const [now, setNow] = useState(() => new Date());
+  // null on first render so SSR and client produce identical HTML (no hydration mismatch)
+  const [now, setNow] = useState<Date | null>(null);
   const tzData = getCountryTimezone(countryCode);
 
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  if (!tzData) return null;
+  if (!tzData || !now) return null;
 
   const localTime  = formatLocalTime(now, tzData.primary);
   const dayNight   = getDayNight(now, tzData.primary);

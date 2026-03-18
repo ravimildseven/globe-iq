@@ -200,16 +200,19 @@ export default function Home() {
 
 /* ── Live UTC clock ──────────────────────────────────────── */
 function UTCClock() {
-  const [time, setTime] = useState(() => new Date());
+  // Initialize null so SSR and first client render both produce the same
+  // placeholder — avoids the hydration mismatch from Date() differing.
+  const [time, setTime] = useState<Date | null>(null);
 
   useEffect(() => {
+    setTime(new Date());
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const hh = String(time.getUTCHours()).padStart(2, "0");
-  const mm = String(time.getUTCMinutes()).padStart(2, "0");
-  const ss = String(time.getUTCSeconds()).padStart(2, "0");
+  const hh = time ? String(time.getUTCHours()).padStart(2, "0")   : "--";
+  const mm = time ? String(time.getUTCMinutes()).padStart(2, "0") : "--";
+  const ss = time ? String(time.getUTCSeconds()).padStart(2, "0") : "--";
 
   return (
     <div className="glass rounded-full px-3.5 py-1.5 flex items-center gap-2 hidden sm:flex">
