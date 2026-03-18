@@ -1,39 +1,36 @@
 "use client";
 
 import { NewsArticle } from "@/lib/types";
-import { ExternalLink, Clock } from "lucide-react";
+import { ExternalLink, Clock, Newspaper } from "lucide-react";
 
 function timeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function ArticleSkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="bg-bg-card rounded-xl p-4 animate-pulse">
-          <div className="h-4 w-3/4 bg-bg-elevated rounded mb-2" />
-          <div className="h-3 w-full bg-bg-elevated rounded mb-2" />
-          <div className="h-3 w-1/3 bg-bg-elevated rounded" />
+        <div key={i} className="bg-bg-card rounded-xl p-4 border border-border-subtle">
+          <div className="skeleton h-4 w-4/5 rounded mb-2.5" />
+          <div className="skeleton h-3 w-full rounded mb-1.5" />
+          <div className="skeleton h-3 w-2/3 rounded mb-3" />
+          <div className="flex gap-2">
+            <div className="skeleton h-3 w-16 rounded-full" />
+            <div className="skeleton h-3 w-12 rounded-full" />
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-export default function NewsTab({
-  articles,
-  loading,
-  countryName,
-}: {
+export default function NewsTab({ articles, loading, countryName }: {
   articles: NewsArticle[];
   loading: boolean;
   countryName: string;
@@ -42,45 +39,56 @@ export default function NewsTab({
 
   if (articles.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-12 h-12 rounded-full bg-bg-elevated flex items-center justify-center mb-3">
-          <Clock size={24} className="text-text-muted" />
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-bg-elevated border border-border flex items-center justify-center">
+          <Newspaper size={22} className="text-text-muted" />
         </div>
-        <p className="text-text-muted text-sm">No recent news found for {countryName}</p>
+        <div>
+          <p className="text-sm text-text-secondary font-medium">No recent news</p>
+          <p className="text-xs text-text-muted mt-1">Nothing found for {countryName}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {articles.map((article, i) => (
         <a
           key={i}
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block bg-bg-card border border-border-subtle rounded-xl p-4 hover:border-hud-border hover:card-glow transition-all group"
+          className="group block bg-bg-card border border-border-subtle rounded-xl p-4 hover:border-accent-amber/30 hover:bg-bg-elevated transition-all"
         >
-          <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-blue transition-colors leading-snug mb-1.5">
+          {/* Title */}
+          <h3 className="text-sm font-medium text-text-primary group-hover:text-accent-amber transition-colors leading-snug mb-2">
             {article.title}
           </h3>
+
+          {/* Summary */}
           {article.summary && (
-            <p className="text-xs text-text-muted leading-relaxed mb-2 line-clamp-2">
+            <p className="text-xs text-text-muted leading-relaxed mb-2.5 line-clamp-2">
               {article.summary}
             </p>
           )}
+
+          {/* Meta row */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="flex items-center gap-2">
               {article.source && (
-                <span className="px-2 py-0.5 rounded bg-bg-elevated text-text-secondary">
+                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-accent-amber/10 text-accent-amber/80 border border-accent-amber/15">
                   {article.source}
                 </span>
               )}
               {article.publishedAt && (
-                <span>{timeAgo(article.publishedAt)}</span>
+                <span className="flex items-center gap-1 text-[10px] text-text-muted">
+                  <Clock size={10} />
+                  {timeAgo(article.publishedAt)}
+                </span>
               )}
             </div>
-            <ExternalLink size={12} className="text-text-muted group-hover:text-accent-blue transition-colors" />
+            <ExternalLink size={12} className="text-text-muted group-hover:text-accent-amber transition-colors" />
           </div>
         </a>
       ))}

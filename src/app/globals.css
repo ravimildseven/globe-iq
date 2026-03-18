@@ -1,108 +1,213 @@
 @import "tailwindcss";
 
 @theme {
-  /* Financial Dashboard + HUD Palette */
-  --color-bg-primary: #020617;
-  --color-bg-card: #0E1223;
-  --color-bg-elevated: #1A1E2F;
-  --color-bg-hover: #232840;
+  /* ─── Deep Space Palette (UI/UX Pro Max: OLED Dark + World Clock) ─── */
+  --color-bg-primary:  #020617;   /* Space black */
+  --color-bg-card:     #0B1120;   /* Elevated card */
+  --color-bg-elevated: #141B2D;   /* Hover/elevated surface */
+  --color-bg-hover:    #1C2540;
 
-  --color-text-primary: #F8FAFC;
+  --color-text-primary:   #F0F4FF;
   --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
+  --color-text-muted:     #4E5D75;
 
-  --color-border: #334155;
-  --color-border-subtle: #1E293B;
+  --color-border:        #1E2D45;
+  --color-border-subtle: #111827;
 
-  --color-accent-blue: #3B82F6;
-  --color-accent-cyan: #22D3EE;
-  --color-accent-green: #22C55E;
-  --color-accent-red: #EF4444;
-  --color-accent-amber: #F59E0B;
+  /* ─── Accent system (amber primary, indigo secondary) ─── */
+  --color-accent-amber:  #F59E0B;
+  --color-accent-gold:   #FBBF24;
+  --color-accent-blue:   #3B82F6;
+  --color-accent-indigo: #6366F1;
+  --color-accent-cyan:   #22D3EE;
+  --color-accent-green:  #22C55E;
+  --color-accent-red:    #EF4444;
   --color-accent-purple: #A855F7;
 
-  --color-hud-glow: rgba(59, 130, 246, 0.15);
-  --color-hud-border: rgba(59, 130, 246, 0.3);
+  /* ─── HUD glow variants ─── */
+  --color-hud-glow:   rgba(245, 158, 11, 0.12);
+  --color-hud-border: rgba(245, 158, 11, 0.35);
+  --color-hud-glow-blue: rgba(59, 130, 246, 0.15);
 
+  /* ─── Typography (Tech Startup: Space Grotesk + DM Sans) ─── */
   --font-heading: 'Space Grotesk', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+
+  /* ─── Easing (UI/UX Pro Max: bezier(0.16, 1, 0.3, 1)) ─── */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ─── Base ─────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 body {
   font-family: var(--font-body);
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--color-bg-card);
-}
+/* ─── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ─── Globe canvas ──────────────────────────────────────── */
+canvas { cursor: grab; }
+canvas:active { cursor: grabbing; }
+
+/* ─── Starfield ─────────────────────────────────────────── */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 1; }
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  animation: twinkle var(--dur, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
 }
 
-/* Globe canvas cursor */
-canvas {
-  cursor: grab;
+/* ─── Ambient blobs ─────────────────────────────────────── */
+@keyframes blob-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(30px, -20px) scale(1.05); }
+  66%  { transform: translate(-15px, 25px) scale(0.97); }
+  100% { transform: translate(0, 0) scale(1); }
 }
-canvas:active {
-  cursor: grabbing;
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: blob-drift var(--dur, 18s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  pointer-events: none;
 }
 
-/* Tab animations */
+/* ─── Glassmorphism utility ─────────────────────────────── */
+.glass {
+  background: rgba(11, 17, 32, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.glass-light {
+  background: rgba(20, 27, 45, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ─── Glow effects ──────────────────────────────────────── */
+.glow-amber {
+  box-shadow: 0 0 0 1px var(--color-hud-border),
+              0 0 24px var(--color-hud-glow),
+              0 4px 16px rgba(0,0,0,0.4);
+}
+.glow-blue {
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.3),
+              0 0 20px var(--color-hud-glow-blue);
+}
+.card-glow {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.04),
+              0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* ─── Tab indicator (sliding pill) ─────────────────────── */
 .tab-indicator {
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.35s var(--ease-spring), width 0.35s var(--ease-spring);
 }
 
-/* Panel slide */
+/* ─── Panel slide in ────────────────────────────────────── */
 .panel-enter {
-  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: panelSlideIn 0.45s var(--ease-spring);
+}
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(48px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* ─── Panel overlay fade ────────────────────────────────── */
+.overlay-enter {
+  animation: overlayFade 0.3s ease;
+}
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* Pulse for live indicators */
+/* ─── Pulse live dot ────────────────────────────────────── */
 @keyframes pulse-ring {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.8); opacity: 0; }
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
-
+.pulse-dot {
+  position: relative;
+}
 .pulse-dot::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background: inherit;
-  animation: pulse-ring 1.5s ease-out infinite;
+  animation: pulse-ring 1.8s ease-out infinite;
 }
 
-/* HUD glow on cards */
-.card-glow {
-  box-shadow: 0 0 0 1px var(--color-hud-border), 0 0 20px var(--color-hud-glow);
+/* ─── Shimmer skeleton ──────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--color-bg-card) 25%,
+    var(--color-bg-elevated) 50%,
+    var(--color-bg-card) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite;
+}
+
+/* ─── Country hint pop ──────────────────────────────────── */
+@keyframes hintPop {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hint-pop {
+  animation: hintPop 0.5s var(--ease-spring);
+}
+
+/* ─── Zoom button press ─────────────────────────────────── */
+.zoom-btn:active {
+  transform: scale(0.92);
+}
+.zoom-btn {
+  transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+/* ─── HUD scan line (subtle, decorative) ───────────────── */
+.hud-scan::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  border-radius: inherit;
 }

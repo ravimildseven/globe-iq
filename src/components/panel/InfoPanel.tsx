@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Globe2, Newspaper, TrendingUp, Swords } from "lucide-react";
+import { X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight } from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
 import { TabId, CountryInfo, NewsArticle, EconomyData, ConflictData } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
@@ -17,42 +17,39 @@ interface InfoPanelProps {
 }
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "general", label: "General", icon: <Globe2 size={16} /> },
-  { id: "news", label: "News", icon: <Newspaper size={16} /> },
-  { id: "economy", label: "Economy", icon: <TrendingUp size={16} /> },
-  { id: "conflicts", label: "Conflicts", icon: <Swords size={16} /> },
+  { id: "general",   label: "Overview",  icon: <Globe2 size={14} /> },
+  { id: "news",      label: "News",      icon: <Newspaper size={14} /> },
+  { id: "economy",   label: "Economy",   icon: <TrendingUp size={14} /> },
+  { id: "conflicts", label: "Conflicts", icon: <Swords size={14} /> },
 ];
 
 export default function InfoPanel({ country, onClose }: InfoPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("general");
-  const [countryInfo, setCountryInfo] = useState<CountryInfo | null>(null);
-  const [news, setNews] = useState<NewsArticle[]>([]);
-  const [loadingInfo, setLoadingInfo] = useState(true);
-  const [loadingNews, setLoadingNews] = useState(false);
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [activeTab, setActiveTab]       = useState<TabId>("general");
+  const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
+  const [news, setNews]                 = useState<NewsArticle[]>([]);
+  const [loadingInfo, setLoadingInfo]   = useState(true);
+  const [loadingNews, setLoadingNews]   = useState(false);
+  const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
-  // Fetch country info from REST Countries API
+  /* ── Fetch country facts ── */
   useEffect(() => {
     setLoadingInfo(true);
     setCountryInfo(null);
     setActiveTab("general");
 
     fetch(`https://restcountries.com/v3.1/alpha/${country.code}`)
-      .then((res) => res.json())
-      .then((data) => {
+      .then(r => r.json())
+      .then(data => {
         const c = data[0];
         if (!c) return;
-
         const currencies = c.currencies
-          ? Object.values(c.currencies as Record<string, { name: string; symbol: string }>).map((cur) => ({
-              name: cur.name,
-              symbol: cur.symbol,
-            }))
+          ? Object.values(c.currencies as Record<string, { name: string; symbol: string }>)
+              .map(cur => ({ name: cur.name, symbol: cur.symbol }))
           : [];
-
-        const languages = c.languages ? Object.values(c.languages as Record<string, string>) : [];
-
+        const languages = c.languages
+          ? Object.values(c.languages as Record<string, string>)
+          : [];
         setCountryInfo({
           name: c.name?.common || country.name,
           code: country.code,
@@ -62,13 +59,14 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
           population: c.population || 0,
           area: c.area || 0,
           flag: c.flag || "",
+          flagUrl: `https://flagcdn.com/w160/${country.code.toLowerCase()}.png`,
           currencies,
           languages,
           lat: country.lat,
           lng: country.lng,
         });
       })
-      .catch(() => {
+      .catch(() =>
         setCountryInfo({
           name: country.name,
           code: country.code,
@@ -78,107 +76,175 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
           population: 0,
           area: 0,
           flag: "",
+          flagUrl: "",
           currencies: [],
           languages: [],
           lat: country.lat,
           lng: country.lng,
-        });
-      })
+        })
+      )
       .finally(() => setLoadingInfo(false));
   }, [country]);
 
-  // Fetch news when tab changes
+  /* ── Fetch news on tab switch ── */
   useEffect(() => {
     if (activeTab !== "news") return;
     setLoadingNews(true);
     fetch(`/api/news?country=${encodeURIComponent(country.name)}`)
-      .then((res) => res.json())
-      .then((data) => setNews(data.articles || []))
+      .then(r => r.json())
+      .then(d => setNews(d.articles || []))
       .catch(() => setNews([]))
       .finally(() => setLoadingNews(false));
   }, [activeTab, country.name]);
 
-  // Update tab indicator position
+  /* ── Sliding tab indicator ── */
   useEffect(() => {
     const el = tabRefs.current[activeTab];
-    if (el) {
-      setIndicatorStyle({ left: el.offsetLeft, width: el.offsetWidth });
-    }
+    if (el) setIndicatorStyle({ left: el.offsetLeft, width: el.offsetWidth });
   }, [activeTab]);
 
-  const economy: EconomyData | null = economyDatabase[country.code] || null;
-  const conflicts: ConflictData[] = conflictsDatabase[country.code] || [];
+  const economy: EconomyData | null   = economyDatabase[country.code] || null;
+  const conflicts: ConflictData[]     = conflictsDatabase[country.code] || [];
+  const hasConflicts                  = conflicts.length > 0;
 
   return (
-    <div className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] bg-bg-primary/95 backdrop-blur-xl border-l border-border-subtle z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">{countryInfo?.flag || "🌍"}</span>
-          <div>
-            <h2 className="text-xl font-semibold font-[var(--font-heading)] text-text-primary">
-              {countryInfo?.name || country.name}
-            </h2>
-            <p className="text-sm text-text-muted">
-              {countryInfo?.capital !== "N/A" ? countryInfo?.capital : ""}{" "}
-              {countryInfo?.region ? `· ${countryInfo.region}` : ""}
-            </p>
+    <>
+      {/* Backdrop on mobile */}
+      <div
+        className="overlay-enter fixed inset-0 bg-black/40 backdrop-blur-sm z-40 sm:hidden"
+        onClick={onClose}
+      />
+
+      <aside className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col">
+
+        {/* ── Gradient hero header ── */}
+        <div className="relative overflow-hidden flex-shrink-0" style={{ minHeight: 120 }}>
+          {/* BG gradient */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "linear-gradient(135deg, #0B1120 0%, #141B2D 60%, #0B1120 100%)",
+            }}
+          />
+          {/* Accent glow top edge */}
+          <div
+            className="absolute top-0 left-0 right-0 h-px"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)" }}
+          />
+          {/* Flag blurred backdrop */}
+          {countryInfo?.flagUrl && (
+            <img
+              src={countryInfo.flagUrl}
+              alt=""
+              className="absolute right-0 top-0 h-full w-32 object-cover opacity-[0.06] blur-sm"
+              draggable={false}
+            />
+          )}
+
+          {/* Content */}
+          <div className="relative px-5 pt-5 pb-4 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              {/* Flag + emoji */}
+              <div className="relative flex-shrink-0">
+                {countryInfo?.flagUrl ? (
+                  <img
+                    src={countryInfo.flagUrl}
+                    alt={`${countryInfo.name} flag`}
+                    className="w-14 h-10 rounded-md object-cover shadow-lg border border-white/10"
+                  />
+                ) : (
+                  <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
+                    {countryInfo?.flag || "🌍"}
+                  </div>
+                )}
+              </div>
+
+              {/* Name + meta */}
+              <div>
+                <h2 className="text-lg font-bold text-text-primary leading-tight">
+                  {loadingInfo ? (
+                    <span className="skeleton inline-block w-32 h-5 rounded" />
+                  ) : (
+                    countryInfo?.name || country.name
+                  )}
+                </h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {loadingInfo ? (
+                    <span className="skeleton inline-block w-24 h-3.5 rounded" />
+                  ) : (
+                    <>
+                      <span className="text-xs text-text-muted">{countryInfo?.capital}</span>
+                      {countryInfo?.region && (
+                        <>
+                          <ChevronRight size={10} className="text-text-muted/40" />
+                          <span className="text-xs text-text-muted">{countryInfo.region}</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Close */}
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 w-8 h-8 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg hover:bg-bg-elevated transition-colors text-text-muted hover:text-text-primary"
-        >
-          <X size={20} />
-        </button>
-      </div>
 
-      {/* Tabs */}
-      <div className="relative px-5 border-b border-border-subtle">
-        <div className="flex gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              ref={(el) => { tabRefs.current[tab.id] = el; }}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-3 text-sm transition-colors relative ${
-                activeTab === tab.id
-                  ? "text-accent-blue"
-                  : "text-text-muted hover:text-text-secondary"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-              {tab.id === "conflicts" && conflicts.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-accent-red/20 text-accent-red">
-                  {conflicts.length}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* ── Tabs (pill style) ── */}
+        <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0">
+          <div className="flex gap-1 relative">
+            {/* Background indicator pill */}
+            <div
+              className="tab-indicator absolute top-0.5 bottom-0.5 bg-bg-elevated rounded-lg"
+              style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
+            />
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                ref={el => { tabRefs.current[tab.id] = el; }}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors z-10 ${
+                  activeTab === tab.id
+                    ? "text-accent-amber"
+                    : "text-text-muted hover:text-text-secondary"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === "conflicts" && hasConflicts && (
+                  <span className="ml-0.5 w-4 h-4 text-[9px] font-bold rounded-full bg-accent-red/20 text-accent-red flex items-center justify-center">
+                    {conflicts.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-        {/* Animated indicator */}
-        <div
-          className="tab-indicator absolute bottom-0 h-0.5 bg-accent-blue rounded-full"
-          style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
-        />
-      </div>
 
-      {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto p-5">
-        {activeTab === "general" && (
-          <GeneralTab info={countryInfo} loading={loadingInfo} />
-        )}
-        {activeTab === "news" && (
-          <NewsTab articles={news} loading={loadingNews} countryName={country.name} />
-        )}
-        {activeTab === "economy" && (
-          <EconomyTab data={economy} countryName={country.name} />
-        )}
-        {activeTab === "conflicts" && (
-          <ConflictsTab conflicts={conflicts} countryName={country.name} />
-        )}
-      </div>
-    </div>
+        {/* ── Tab content ── */}
+        <div
+          className="flex-1 overflow-y-auto px-4 py-4"
+          style={{ background: "linear-gradient(180deg, #0B1120 0%, #020617 100%)" }}
+        >
+          {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
+          {activeTab === "news"      && <NewsTab       articles={news}     loading={loadingNews}  countryName={country.name} />}
+          {activeTab === "economy"   && <EconomyTab    data={economy}      countryName={country.name} />}
+          {activeTab === "conflicts" && <ConflictsTab  conflicts={conflicts} countryName={country.name} />}
+        </div>
+
+        {/* ── Bottom edge accent ── */}
+        <div
+          className="flex-shrink-0 h-px"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.2), transparent)" }}
+        />
+      </aside>
+    </>
   );
 }

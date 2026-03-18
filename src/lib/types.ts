@@ -7,6 +7,7 @@ export interface CountryInfo {
   population: number;
   area: number;
   flag: string;
+  flagUrl: string;
   currencies: { name: string; symbol: string }[];
   languages: string[];
   lat: number;
