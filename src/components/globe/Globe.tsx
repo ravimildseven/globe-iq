@@ -21,7 +21,7 @@ interface GlobeProps {
 }
 
 /* ── Real-time subsolar point for sun lighting ── */
-function getSunPosition(): [number, number, number] {
+function getSunPosition(): THREE.Vector3 {
   const now = new Date();
   const dayOfYear = Math.floor(
     (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000
@@ -31,36 +31,96 @@ function getSunPosition(): [number, number, number] {
   const sunLng = (12 - hours) * 15;
   const phi   = (90 - declination) * (Math.PI / 180);
   const theta = (sunLng + 180) * (Math.PI / 180);
-  const d = 10;
-  return [
-    -(d * Math.sin(phi) * Math.cos(theta)),
-    d * Math.cos(phi),
-    d * Math.sin(phi) * Math.sin(theta),
-  ];
+  return new THREE.Vector3(
+    -(Math.sin(phi) * Math.cos(theta)),
+    Math.cos(phi),
+    Math.sin(phi) * Math.sin(theta),
+  ).normalize();
 }
 
-function SunLight() {
-  const [sunPos, setSunPos] = useState<[number, number, number]>(getSunPosition);
+/* ── Scene lights (affect atmosphere & markers) ── */
+function SunLight({ sunDir }: { sunDir: THREE.Vector3 }) {
+  const dirRef      = useRef<THREE.DirectionalLight>(null);
+  const earthRef    = useRef<THREE.DirectionalLight>(null);
 
   useFrame(() => {
-    if (Math.random() < 0.016) setSunPos(getSunPosition());
+    if (dirRef.current) {
+      dirRef.current.position.set(sunDir.x * 10, sunDir.y * 10, sunDir.z * 10);
+    }
+    if (earthRef.current) {
+      earthRef.current.position.set(-sunDir.x * 4, -sunDir.y * 3, -sunDir.z * 4);
+    }
   });
 
   return (
     <>
       {/* Primary warm sunlight */}
-      <directionalLight position={sunPos} intensity={2.2} color="#FFF5E0" castShadow={false} />
-      {/* Very dim ambient — deep space starlight */}
-      <ambientLight intensity={0.12} color="#8AA8D0" />
-      {/* Earthshine (faint blue-fill from opposite side) */}
       <directionalLight
-        position={[-sunPos[0] * 0.4, -sunPos[1] * 0.3, -sunPos[2] * 0.4]}
-        intensity={0.18}
+        ref={dirRef}
+        position={[sunDir.x * 10, sunDir.y * 10, sunDir.z * 10]}
+        intensity={2.2}
+        color="#FFF5E0"
+      />
+      {/* Dim ambient — deep space starlight */}
+      <ambientLight intensity={0.15} color="#8AA8D0" />
+      {/* Earthshine fill from opposite side */}
+      <directionalLight
+        ref={earthRef}
+        position={[-sunDir.x * 4, -sunDir.y * 3, -sunDir.z * 4]}
+        intensity={0.22}
         color="#3A5A8A"
       />
     </>
   );
 }
+
+/* ── Day/Night custom shader ── */
+const DAY_NIGHT_VERT = /* glsl */ `
+  varying vec2  vUv;
+  varying vec3  vWorldNormal;
+
+  void main() {
+    vUv          = uv;
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    gl_Position  = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const DAY_NIGHT_FRAG = /* glsl */ `
+  uniform sampler2D dayTexture;
+  uniform sampler2D nightTexture;
+  uniform vec3      sunDirection;   // world-space unit vector toward sun
+
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+
+  void main() {
+    vec4 dayColor   = texture2D(dayTexture,   vUv);
+    vec4 nightColor = texture2D(nightTexture, vUv);
+
+    float cosAngle = dot(normalize(vWorldNormal), normalize(sunDirection));
+
+    // ── Smooth terminator blend (±12° twilight zone) ──────────────────────
+    float dayMix = smoothstep(-0.12, 0.12, cosAngle);
+
+    // ── Day side: Lambertian diffuse + minimal deep-space ambient ──────────
+    float diffuse = max(cosAngle, 0.0);
+    vec4  litDay  = dayColor * (0.07 + diffuse * 0.94);
+
+    // ── Night side: city lights (boosted) + faint earthshine ──────────────
+    // Earthshine: reflected sunlight from Earth's oceans onto night side —
+    // makes continents subtly visible in cool blue-grey.
+    vec4 earthshine = dayColor * 0.09 * vec4(0.45, 0.55, 0.80, 1.0);
+    vec4 litNight   = nightColor * 1.65 + earthshine;
+
+    // ── Twilight: warm golden glow at horizon ──────────────────────────────
+    float twilight     = 1.0 - abs(cosAngle / 0.12) * step(-0.12, cosAngle) * step(cosAngle, 0.12);
+    vec4  twilightGlow = vec4(1.0, 0.75, 0.3, 0.0) * twilight * 0.12;
+
+    gl_FragColor = mix(litNight, litDay, dayMix) + twilightGlow;
+    gl_FragColor.a = 1.0;
+  }
+`;
 
 /* ── Atmospheric halo rings ── */
 function Atmosphere() {
@@ -228,21 +288,20 @@ function CountryMarker({
   );
 }
 
-/* ── Main globe with textures ── */
+/* ── Main globe with day/night shader ── */
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart,
+  selectedCountry, onCountrySelect, onInteractionStart, sunDir,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   onInteractionStart: () => void;
+  sunDir: THREE.Vector3;
 }) {
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
-  const globeRef = useRef<THREE.Mesh>(null);
+  const shaderRef = useRef<THREE.ShaderMaterial>(null);
 
   const earthTexture = useLoader(THREE.TextureLoader,
     "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg");
-  const bumpMap = useLoader(THREE.TextureLoader,
-    "https://unpkg.com/three-globe@2.34.1/example/img/earth-topology.png");
   const nightTexture = useLoader(THREE.TextureLoader,
     "https://unpkg.com/three-globe@2.34.1/example/img/earth-night.jpg");
 
@@ -250,7 +309,21 @@ function EarthGlobe({
     earthTexture.colorSpace = THREE.SRGBColorSpace;
     earthTexture.anisotropy = 16;
     nightTexture.colorSpace = THREE.SRGBColorSpace;
+    nightTexture.anisotropy = 16;
   }, [earthTexture, nightTexture]);
+
+  /* Build shader uniforms once; update sunDirection every frame via ref */
+  const uniforms = useMemo(() => ({
+    dayTexture:   { value: earthTexture },
+    nightTexture: { value: nightTexture },
+    sunDirection: { value: sunDir.clone() },
+  }), [earthTexture, nightTexture]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useFrame(() => {
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.sunDirection.value.copy(sunDir);
+    }
+  });
 
   const handlePointerMove = useCallback((e: any) => {
     if (!e.point) return;
@@ -266,20 +339,18 @@ function EarthGlobe({
 
   return (
     <group>
-      {/* Earth sphere */}
+      {/* Earth sphere with day/night shader */}
       <Sphere
-        ref={globeRef}
         args={[1, 128, 128]}
         onClick={handleClick}
         onPointerMove={handlePointerMove}
         onPointerOut={() => setHoveredCountry(null)}
       >
-        <meshStandardMaterial
-          map={earthTexture}
-          bumpMap={bumpMap}
-          bumpScale={0.035}
-          roughness={0.65}
-          metalness={0.04}
+        <shaderMaterial
+          ref={shaderRef}
+          vertexShader={DAY_NIGHT_VERT}
+          fragmentShader={DAY_NIGHT_FRAG}
+          uniforms={uniforms}
         />
       </Sphere>
 
@@ -341,6 +412,39 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
   );
 }
 
+/* ── Scene root — owns sun direction state shared across lights + shader ── */
+function SceneRoot({
+  selectedCountry, onCountrySelect, onInteractionStart, zoomDelta, onZoomHandled, isInteracting,
+}: {
+  selectedCountry: CountryCentroid | null;
+  onCountrySelect: (country: CountryCentroid) => void;
+  onInteractionStart: () => void;
+  zoomDelta: number;
+  onZoomHandled: () => void;
+  isInteracting: boolean;
+}) {
+  const sunDir = useRef<THREE.Vector3>(getSunPosition());
+
+  useFrame(() => {
+    // Recalculate ~once per minute (1/3600 per-frame chance at ~60fps ≈ once per minute)
+    if (Math.random() < 0.0003) sunDir.current.copy(getSunPosition());
+  });
+
+  return (
+    <>
+      <SunLight sunDir={sunDir.current} />
+      <EarthGlobe
+        selectedCountry={selectedCountry}
+        onCountrySelect={onCountrySelect}
+        onInteractionStart={onInteractionStart}
+        sunDir={sunDir.current}
+      />
+      <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
+      <AutoRotate enabled={!isInteracting && !selectedCountry} />
+    </>
+  );
+}
+
 /* ── Loading fallback ── */
 function LoadingFallback() {
   return (
@@ -368,18 +472,16 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <SunLight />
-
         <Suspense fallback={<LoadingFallback />}>
-          <EarthGlobe
+          <SceneRoot
             selectedCountry={selectedCountry}
             onCountrySelect={onCountrySelect}
             onInteractionStart={stopRotation}
+            zoomDelta={zoomDelta}
+            onZoomHandled={onZoomHandled}
+            isInteracting={isInteracting}
           />
         </Suspense>
-
-        <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
-        <AutoRotate enabled={!isInteracting && !selectedCountry} />
       </Canvas>
     </div>
   );
