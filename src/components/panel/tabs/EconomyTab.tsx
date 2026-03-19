@@ -1,8 +1,29 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Package, Percent, Users, Minus } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3,
+  Package,
+  Percent,
+  Users,
+  Minus,
+  Globe2,
+  Database,
+} from "lucide-react";
 
+// ─── Response type matching the API ─────────────────────────────────────────
+interface EconomyResponse {
+  data: EconomyData | null;
+  source: "worldbank" | "static" | "none";
+  sourceLabel: string;
+  asOf: string;
+}
+
+// ─── KPI card ────────────────────────────────────────────────────────────────
 function KPICard({ icon, label, value, trend }: {
   icon: React.ReactNode;
   label: string;
@@ -17,18 +38,70 @@ function KPICard({ icon, label, value, trend }: {
       </div>
       <div className="flex items-end gap-1.5">
         <p className="text-base font-bold text-text-primary leading-tight">{value}</p>
-        {trend === "up"   && <TrendingUp  size={13} className="text-accent-green mb-0.5" />}
-        {trend === "down" && <TrendingDown size={13} className="text-accent-red mb-0.5" />}
-        {trend === "neutral" && <Minus    size={13} className="text-text-muted mb-0.5" />}
+        {trend === "up"      && <TrendingUp  size={13} className="text-accent-green mb-0.5" />}
+        {trend === "down"    && <TrendingDown size={13} className="text-accent-red mb-0.5" />}
+        {trend === "neutral" && <Minus       size={13} className="text-text-muted mb-0.5" />}
       </div>
     </div>
   );
 }
 
-export default function EconomyTab({ data, countryName }: {
-  data: EconomyData | null;
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+function Skeletons() {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2.5">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="rounded-xl p-4 bg-bg-card border border-border-subtle">
+            <div className="skeleton h-2.5 w-16 rounded mb-3" />
+            <div className="skeleton h-5 w-24 rounded" />
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl p-4 bg-bg-card border border-border-subtle">
+        <div className="skeleton h-2.5 w-20 rounded mb-3" />
+        <div className="skeleton h-7 w-32 rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function EconomyTab({
+  countryCode,
+  countryName,
+}: {
+  countryCode: string;
   countryName: string;
 }) {
+  const [loading, setLoading]   = useState(true);
+  const [result, setResult]     = useState<EconomyResponse | null>(null);
+
+  const fetchEconomy = useCallback(async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/economy?code=${encodeURIComponent(countryCode)}`);
+      if (!res.ok) throw new Error("fetch failed");
+      const json: EconomyResponse = await res.json();
+      setResult(json);
+    } catch {
+      setResult({ data: null, source: "none", sourceLabel: "No data", asOf: "" });
+    } finally {
+      setLoading(false);
+    }
+  }, [countryCode]);
+
+  useEffect(() => {
+    fetchEconomy();
+  }, [fetchEconomy]);
+
+  // ── Loading state ───────────────────────────────────────────────────────
+  if (loading) return <Skeletons />;
+
+  const data = result?.data ?? null;
+
+  // ── Empty state ─────────────────────────────────────────────────────────
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
@@ -46,14 +119,16 @@ export default function EconomyTab({ data, countryName }: {
   const stockTrend = data.stockChange?.startsWith("+") ? "up"
     : data.stockChange?.startsWith("-") ? "down" : "neutral";
 
+  const isLive = result?.source === "worldbank";
+
   return (
     <div className="space-y-3">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5">
-        <KPICard icon={<DollarSign size={14} />} label="GDP"           value={data.gdp} />
-        <KPICard icon={<DollarSign size={14} />} label="GDP / capita"  value={data.gdpPerCapita} />
-        <KPICard icon={<Percent    size={14} />} label="Inflation"     value={data.inflation} />
-        <KPICard icon={<Users      size={14} />} label="Unemployment"  value={data.unemployment} />
+        <KPICard icon={<DollarSign size={14} />} label="GDP"          value={data.gdp} />
+        <KPICard icon={<DollarSign size={14} />} label="GDP / capita" value={data.gdpPerCapita} />
+        <KPICard icon={<Percent    size={14} />} label="Inflation"    value={data.inflation} />
+        <KPICard icon={<Users      size={14} />} label="Unemployment" value={data.unemployment} />
       </div>
 
       {/* Stock market card */}
@@ -89,23 +164,37 @@ export default function EconomyTab({ data, countryName }: {
       </div>
 
       {/* Exports */}
-      <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Package size={14} className="text-accent-purple" />
-          <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
-            Main Exports
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {data.mainExports.map(exp => (
-            <span
-              key={exp}
-              className="px-2.5 py-1 text-[11px] rounded-full bg-bg-elevated text-text-secondary border border-border-subtle"
-            >
-              {exp}
+      {data.mainExports.length > 0 && (
+        <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Package size={14} className="text-accent-purple" />
+            <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+              Main Exports
             </span>
-          ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {data.mainExports.map(exp => (
+              <span
+                key={exp}
+                className="px-2.5 py-1 text-[11px] rounded-full bg-bg-elevated text-text-secondary border border-border-subtle"
+              >
+                {exp}
+              </span>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Source badge */}
+      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent-indigo/5 border border-accent-indigo/15">
+        {isLive
+          ? <Globe2    size={13} className="text-accent-indigo flex-shrink-0" />
+          : <Database  size={13} className="text-accent-indigo flex-shrink-0" />
+        }
+        <span className="text-[10px] text-text-muted">
+          {result?.sourceLabel ?? ""}
+          {result?.asOf ? ` · ${result.asOf}` : ""}
+        </span>
       </div>
     </div>
   );

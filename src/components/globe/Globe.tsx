@@ -249,6 +249,117 @@ function flagEmoji(code: string) {
   ).join("");
 }
 
+// ─── Countries that always show a subtle name label on the globe ──────────────
+// Large / geographically recognizable nations — helps mobile users who can't hover.
+// Sorted roughly by land area to keep the most "spacious" labels first.
+const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number }[] = [
+  { code: "RU", name: "Russia",       lat: 61.52,  lng:  105.32 },
+  { code: "CA", name: "Canada",       lat: 56.13,  lng: -106.35 },
+  { code: "US", name: "United States",lat: 39.50,  lng: -98.35  },
+  { code: "BR", name: "Brazil",       lat: -10.0,  lng:  -53.0  },
+  { code: "AU", name: "Australia",    lat: -25.27, lng:  133.78 },
+  { code: "CN", name: "China",        lat:  36.00, lng:  103.0  },
+  { code: "IN", name: "India",        lat:  22.00, lng:   79.0  },
+  { code: "AR", name: "Argentina",    lat: -35.0,  lng:  -65.0  },
+  { code: "KZ", name: "Kazakhstan",   lat:  48.02, lng:   66.92 },
+  { code: "DZ", name: "Algeria",      lat:  28.03, lng:    3.0  },
+  { code: "CD", name: "DR Congo",     lat:  -3.0,  lng:   24.0  },
+  { code: "SA", name: "Saudi Arabia", lat:  25.0,  lng:   45.0  },
+  { code: "MX", name: "Mexico",       lat:  23.63, lng: -102.55 },
+  { code: "ID", name: "Indonesia",    lat:  -2.0,  lng:  118.0  },
+  { code: "NG", name: "Nigeria",      lat:   9.08, lng:    8.68 },
+  { code: "IR", name: "Iran",         lat:  32.43, lng:   53.69 },
+  { code: "PE", name: "Peru",         lat: -10.0,  lng:  -76.0  },
+  { code: "ET", name: "Ethiopia",     lat:   9.15, lng:   40.49 },
+  { code: "ZA", name: "South Africa", lat: -29.0,  lng:   25.0  },
+  { code: "CO", name: "Colombia",     lat:   4.57, lng:  -74.30 },
+  { code: "EG", name: "Egypt",        lat:  26.82, lng:   30.80 },
+  { code: "SD", name: "Sudan",        lat:  12.86, lng:   30.22 },
+  { code: "LY", name: "Libya",        lat:  26.34, lng:   17.23 },
+  { code: "VE", name: "Venezuela",    lat:   6.42, lng:  -66.59 },
+  { code: "PK", name: "Pakistan",     lat:  30.38, lng:   69.35 },
+];
+
+// ─── Single muted label for one major country ─────────────────────────────────
+function MajorCountryLabel({
+  entry,
+  hideCodes,
+}: {
+  entry: typeof LABELED_COUNTRIES[number];
+  hideCodes: Set<string>;
+}) {
+  const pos = latLngToVector3(entry.lat, entry.lng, 1.055);
+  const { camera } = useThree();
+  const [dot, setDot] = useState(0);
+
+  useFrame(() => {
+    const d = new THREE.Vector3(...pos).normalize().dot(camera.position.clone().normalize());
+    setDot(d);
+  });
+
+  // Hide if near the limb or behind the globe, or if hovered/selected
+  if (dot < 0.38 || hideCodes.has(entry.code)) return null;
+
+  // Fade: 0.38 → 0.55 is the transition zone
+  const opacity = Math.min(1, (dot - 0.38) / 0.17) * 0.65;
+
+  return (
+    <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
+      zIndexRange={[5, 0]} occlude={false}>
+      <div style={{
+        opacity,
+        fontFamily: "var(--font-heading)",
+        whiteSpace: "nowrap",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 7px",
+        borderRadius: 10,
+        background: "rgba(4,10,24,0.55)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        border: "1px solid rgba(180,210,255,0.10)",
+        transition: "opacity 200ms ease",
+      }}>
+        <span style={{ fontSize: 11, lineHeight: 1 }}>{flagEmoji(entry.code)}</span>
+        <span style={{
+          fontSize: 9,
+          fontWeight: 600,
+          color: "rgba(200,220,255,0.75)",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}>
+          {entry.name}
+        </span>
+      </div>
+    </Html>
+  );
+}
+
+// ─── Renders all major-country labels ─────────────────────────────────────────
+function MajorCountryLabels({
+  hoveredCode,
+  selectedCode,
+}: {
+  hoveredCode: string | null;
+  selectedCode: string | null;
+}) {
+  const hideCodes = useMemo(() => {
+    const s = new Set<string>();
+    if (hoveredCode)  s.add(hoveredCode);
+    if (selectedCode) s.add(selectedCode);
+    return s;
+  }, [hoveredCode, selectedCode]);
+
+  return (
+    <>
+      {LABELED_COUNTRIES.map(entry => (
+        <MajorCountryLabel key={entry.code} entry={entry} hideCodes={hideCodes} />
+      ))}
+    </>
+  );
+}
+
 // ─── Selected-country centroid label (amber pill, 3-D anchored) ───────────────
 function SelectedLabel({ country }: { country: CountryCentroid }) {
   const labelPos = latLngToVector3(country.lat, country.lng, 1.06);
@@ -427,6 +538,12 @@ function EarthGlobe({
       {selectedCountry && (
         <SelectedLabel country={selectedCountry} />
       )}
+
+      {/* Always-visible muted labels for major countries (helps mobile) */}
+      <MajorCountryLabels
+        hoveredCode={hoveredCentroid?.code ?? null}
+        selectedCode={selectedCountry?.code ?? null}
+      />
 
       <Atmosphere />
     </group>
