@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { CountryCentroid } from "@/lib/countries-geo";
 import InfoPanel from "@/components/panel/InfoPanel";
 import AmbientSound from "@/components/ui/AmbientSound";
-import { Globe2, Plus, Minus, MousePointer2 } from "lucide-react";
+import { Globe2, Plus, Minus } from "lucide-react";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
   ssr: false,
@@ -129,15 +129,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Centre hint */}
-        {!selectedCountry && (
-          <div className="hint-pop hidden sm:flex items-center gap-2 px-4 py-2 glass rounded-full">
-            <MousePointer2 size={13} className="text-accent-amber" />
-            <span className="text-xs text-text-secondary">
-              Click any country to explore
-            </span>
-          </div>
-        )}
+        {/* Centre spacer — instruction replaced by beacon dots on the globe */}
+        <div />
 
         {/* Right — sound */}
         <div className="pointer-events-auto">

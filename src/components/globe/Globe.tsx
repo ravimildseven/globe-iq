@@ -138,6 +138,34 @@ function Atmosphere() {
   );
 }
 
+/* ── Idle beacon — slow radar ping on major unselected countries ── */
+function IdleBeacon({ position, phaseOffset }: {
+  position: [number, number, number];
+  phaseOffset: number;
+}) {
+  const ref    = useRef<THREE.Mesh>(null);
+  const tRef   = useRef(phaseOffset);
+  const CYCLE  = 3.8; // seconds per pulse
+  const normal = new THREE.Vector3(...position).normalize();
+  const quat   = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+  useFrame((_, delta) => {
+    if (!ref.current) return;
+    tRef.current = (tRef.current + delta) % CYCLE;
+    const t = tRef.current / CYCLE;              // 0 → 1
+    ref.current.scale.setScalar(1 + t * 2.8);   // 1× → 3.8×
+    (ref.current.material as THREE.MeshBasicMaterial).opacity =
+      Math.max(0, 0.38 * (1 - t * t));           // fast-in, slow fade
+  });
+
+  return (
+    <mesh position={position} quaternion={quat} ref={ref}>
+      <ringGeometry args={[0.020, 0.028, 24]} />
+      <meshBasicMaterial color="#F59E0B" transparent opacity={0.38} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
 /* ── Animated pulse ring for selected country ── */
 function SelectedPulse({ position }: { position: [number, number, number] }) {
   const ref = useRef<THREE.Mesh>(null);
@@ -183,12 +211,13 @@ function ExpandingRing({ position }: { position: [number, number, number] }) {
 
 /* ── Per-country dot + label ── */
 function CountryMarker({
-  country, isSelected, isHovered, isMajor, onClick, onHover, onUnhover,
+  country, isSelected, isHovered, isMajor, phaseOffset, onClick, onHover, onUnhover,
 }: {
   country: CountryCentroid;
   isSelected: boolean;
   isHovered: boolean;
   isMajor: boolean;
+  phaseOffset: number;
   onClick: () => void;
   onHover: () => void;
   onUnhover: () => void;
@@ -202,7 +231,7 @@ function CountryMarker({
 
   useFrame(() => {
     if (!dotRef.current) return;
-    const target = isSelected ? 0.024 : isHovered ? 0.019 : isMajor ? 0.011 : 0.007;
+    const target = isSelected ? 0.024 : isHovered ? 0.020 : isMajor ? 0.013 : 0.008;
     const s = dotRef.current.scale.x;
     dotRef.current.scale.setScalar(s + (target - s) * 0.18);
 
@@ -210,12 +239,14 @@ function CountryMarker({
     setIsFront(d > 0.08);
   });
 
-  const dotColor = isSelected ? "#F59E0B" : isHovered ? "#FCD34D" : isMajor ? "#E2E8F0" : "#94A3B8";
+  // Warm amber for major countries — signals "tappable hotspot"
+  const dotColor = isSelected ? "#F59E0B" : isHovered ? "#FDE68A" : isMajor ? "#FBBF24" : "#7DD3FC";
   const dotOpacity = isFront
-    ? (isSelected ? 1 : isHovered ? 0.95 : isMajor ? 0.8 : 0.45)
+    ? (isSelected ? 1 : isHovered ? 1 : isMajor ? 0.75 : 0.40)
     : 0;
 
-  const showLabel = isFront && (isSelected || isHovered || isMajor);
+  const showLabel  = isFront && (isSelected || isHovered || isMajor);
+  const showBeacon = isFront && isMajor && !isSelected && !isHovered;
 
   return (
     <group>
@@ -223,8 +254,15 @@ function CountryMarker({
       <mesh
         position={pos}
         onClick={e => { e.stopPropagation(); onClick(); }}
-        onPointerOver={e => { e.stopPropagation(); onHover(); }}
-        onPointerOut={onUnhover}
+        onPointerOver={e => {
+          e.stopPropagation();
+          onHover();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          onUnhover();
+          document.body.style.cursor = "";
+        }}
         visible={false}
       >
         <sphereGeometry args={[0.045, 8, 8]} />
@@ -236,6 +274,9 @@ function CountryMarker({
         <sphereGeometry args={[1, 8, 8]} />
         <meshBasicMaterial color={dotColor} transparent opacity={dotOpacity} />
       </mesh>
+
+      {/* Idle beacon — invites interaction before any click */}
+      {showBeacon && <IdleBeacon position={pos} phaseOffset={phaseOffset} />}
 
       {/* Selected rings */}
       {isSelected && isFront && <SelectedPulse position={pos} />}
@@ -357,13 +398,14 @@ function EarthGlobe({
       <Atmosphere />
 
       {/* Country markers */}
-      {countryCentroids.map(c => (
+      {countryCentroids.map((c, i) => (
         <CountryMarker
           key={c.code}
           country={c}
           isSelected={selectedCountry?.code === c.code}
           isHovered={hoveredCountry?.code === c.code}
           isMajor={MAJOR_COUNTRIES.has(c.code)}
+          phaseOffset={(i * 0.55) % 3.8}   // stagger beacons across the globe
           onClick={() => { onInteractionStart(); onCountrySelect(c); }}
           onHover={() => setHoveredCountry(c)}
           onUnhover={() => setHoveredCountry(null)}
