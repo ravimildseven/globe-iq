@@ -29,6 +29,7 @@ export interface ConflictData {
   description: string;
   parties: string[];
   startYear: number;
+  severity?: "high" | "medium" | "low";
 }
 
 export interface EconomyData {

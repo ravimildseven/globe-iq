@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight } from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
-import { TabId, CountryInfo, EconomyData, ConflictData } from "@/lib/types";
+import { TabId, CountryInfo, EconomyData } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { economyDatabase } from "@/lib/economy-data";
 import GeneralTab from "./tabs/GeneralTab";
@@ -90,9 +90,8 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
     if (el) setIndicatorStyle({ left: el.offsetLeft, width: el.offsetWidth });
   }, [activeTab]);
 
-  const economy: EconomyData | null   = economyDatabase[country.code] || null;
-  const conflicts: ConflictData[]     = conflictsDatabase[country.code] || [];
-  const hasConflicts                  = conflicts.length > 0;
+  const economy: EconomyData | null = economyDatabase[country.code] || null;
+  const hasConflicts                = (conflictsDatabase[country.code]?.length ?? 0) > 0;
 
   return (
     <>
@@ -206,9 +205,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
                 {tab.icon}
                 {tab.label}
                 {tab.id === "conflicts" && hasConflicts && (
-                  <span className="ml-0.5 w-4 h-4 text-[9px] font-bold rounded-full bg-accent-red/20 text-accent-red flex items-center justify-center">
-                    {conflicts.length}
-                  </span>
+                  <span className="ml-0.5 w-2 h-2 rounded-full bg-accent-red flex items-center justify-center pulse-dot" />
                 )}
               </button>
             ))}
@@ -223,7 +220,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
           {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
           {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
           {activeTab === "economy"   && <EconomyTab    data={economy}      countryName={country.name} />}
-          {activeTab === "conflicts" && <ConflictsTab  conflicts={conflicts} countryName={country.name} />}
+          {activeTab === "conflicts" && <ConflictsTab  countryCode={country.code} countryName={country.name} />}
         </div>
 
         {/* ── Bottom edge accent ── */}
