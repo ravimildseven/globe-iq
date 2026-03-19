@@ -242,18 +242,22 @@ function ExpandingRing({ position }: { position: [number, number, number] }) {
   );
 }
 
-// ─── Country label ────────────────────────────────────────────────────────────
-function CountryLabel({ country, isSelected }: {
-  country: CountryCentroid;
-  isSelected: boolean;
-}) {
-  const labelPos = latLngToVector3(country.lat, country.lng, 1.05);
+// ─── ISO alpha-2 → flag emoji ─────────────────────────────────────────────────
+function flagEmoji(code: string) {
+  return [...code.toUpperCase()].map(
+    c => String.fromCodePoint(c.charCodeAt(0) + 0x1F1E6 - 65)
+  ).join("");
+}
+
+// ─── Selected-country centroid label (amber pill, 3-D anchored) ───────────────
+function SelectedLabel({ country }: { country: CountryCentroid }) {
+  const labelPos = latLngToVector3(country.lat, country.lng, 1.06);
   const { camera } = useThree();
   const [visible, setVisible] = useState(true);
 
   useFrame(() => {
     const d = new THREE.Vector3(...labelPos).normalize().dot(camera.position.clone().normalize());
-    setVisible(d > 0.1);
+    setVisible(d > 0.15);
   });
 
   if (!visible) return null;
@@ -264,25 +268,18 @@ function CountryLabel({ country, isSelected }: {
       <div style={{
         fontFamily: "var(--font-heading)",
         whiteSpace: "nowrap",
-        ...(isSelected ? {
-          background: "rgba(245,158,11,0.92)",
-          color: "#020617",
-          padding: "3px 9px",
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 700,
-          boxShadow: "0 0 14px rgba(245,158,11,0.5)",
-        } : {
-          background: "rgba(11,17,32,0.82)",
-          color: "#E0EEFF",
-          border: "1px solid rgba(168,200,232,0.35)",
-          backdropFilter: "blur(8px)",
-          padding: "3px 8px",
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 500,
-        })
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        background: "rgba(245,158,11,0.92)",
+        color: "#020617",
+        padding: "3px 9px",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        boxShadow: "0 0 14px rgba(245,158,11,0.5)",
       }}>
+        <span style={{ fontSize: 13 }}>{flagEmoji(country.code)}</span>
         {country.name}
       </div>
     </Html>
@@ -291,11 +288,12 @@ function CountryLabel({ country, isSelected }: {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, sunDir,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   onInteractionStart: () => void;
+  onHoverCountry: (c: CountryCentroid | null) => void;
   sunDir: THREE.Vector3;
 }) {
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
@@ -345,12 +343,14 @@ function EarthGlobe({
     if (shape) {
       const c = countryCentroids.find(x => x.code === shape.code) ?? null;
       setHoveredCentroid(c);
+      onHoverCountry(c);
       document.body.style.cursor = "pointer";
     } else {
       setHoveredCentroid(null);
+      onHoverCountry(null);
       document.body.style.cursor = "";
     }
-  }, [shapes]);
+  }, [shapes, onHoverCountry]);
 
   // ── Click → select country ──────────────────────────────────────────────────
   const handleClick = useCallback((e: any) => {
@@ -382,6 +382,7 @@ function EarthGlobe({
         onPointerOut={() => {
           setHoveredShape(null);
           setHoveredCentroid(null);
+          onHoverCountry(null);
           document.body.style.cursor = "";
         }}
       >
@@ -422,12 +423,9 @@ function EarthGlobe({
         return <ExpandingRing position={pos} />;
       })()}
 
-      {/* Labels for hovered + selected */}
-      {hoveredCentroid && hoveredCentroid.code !== selectedCountry?.code && (
-        <CountryLabel country={hoveredCentroid} isSelected={false} />
-      )}
+      {/* Selected-country label pinned at centroid (amber pill) */}
       {selectedCountry && (
-        <CountryLabel country={selectedCountry} isSelected />
+        <SelectedLabel country={selectedCountry} />
       )}
 
       <Atmosphere />
@@ -467,12 +465,13 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
-  selectedCountry, onCountrySelect, onInteractionStart,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
   zoomDelta, onZoomHandled, isInteracting,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
   onInteractionStart: () => void;
+  onHoverCountry: (c: CountryCentroid | null) => void;
   zoomDelta: number;
   onZoomHandled: () => void;
   isInteracting: boolean;
@@ -490,6 +489,7 @@ function SceneRoot({
         selectedCountry={selectedCountry}
         onCountrySelect={onCountrySelect}
         onInteractionStart={onInteractionStart}
+        onHoverCountry={onHoverCountry}
         sunDir={sunDir.current}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
@@ -509,7 +509,9 @@ function LoadingFallback() {
 
 // ─── Root export ──────────────────────────────────────────────────────────────
 export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled }: GlobeProps) {
-  const [isInteracting, setIsInteracting] = useState(false);
+  const [isInteracting, setIsInteracting]   = useState(false);
+  const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
+  const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopRotation = useCallback(() => {
@@ -518,8 +520,15 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
     timeoutRef.current = setTimeout(() => setIsInteracting(false), 6000);
   }, []);
 
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  // Hide tooltip for the already-selected country (amber label handles that)
+  const showTooltip = hoveredCountry && hoveredCountry.code !== selectedCountry?.code;
+
   return (
-    <div className="w-full h-full" onPointerDown={stopRotation}>
+    <div className="w-full h-full" onPointerDown={stopRotation} onMouseMove={handleMouseMove}>
       <Canvas
         camera={{ position: [0, 0.25, 2.7], fov: 43 }}
         gl={{ antialias: true, alpha: true }}
@@ -530,12 +539,54 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             selectedCountry={selectedCountry}
             onCountrySelect={onCountrySelect}
             onInteractionStart={stopRotation}
+            onHoverCountry={setHoveredCountry}
             zoomDelta={zoomDelta}
             onZoomHandled={onZoomHandled}
             isInteracting={isInteracting}
           />
         </Suspense>
       </Canvas>
+
+      {/* ── Cursor-following country tooltip ── */}
+      {showTooltip && (
+        <div
+          style={{
+            position: "fixed",
+            left: mousePos.x + 18,
+            top:  mousePos.y - 38,
+            pointerEvents: "none",
+            zIndex: 60,
+            transition: "opacity 120ms ease",
+          }}
+        >
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            background: "rgba(8,14,28,0.88)",
+            border: "1px solid rgba(255,255,255,0.13)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            padding: "5px 11px 5px 9px",
+            borderRadius: 20,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.45), 0 0 0 0.5px rgba(255,255,255,0.05)",
+            whiteSpace: "nowrap",
+          }}>
+            <span style={{ fontSize: 15, lineHeight: 1 }}>
+              {flagEmoji(hoveredCountry.code)}
+            </span>
+            <span style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#E8F0FF",
+              letterSpacing: "0.01em",
+              fontFamily: "var(--font-heading)",
+            }}>
+              {hoveredCountry.name}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
