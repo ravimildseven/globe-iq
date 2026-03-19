@@ -85,7 +85,9 @@ export async function loadCountryShapes(
   const shapes: CountryShape[] = [];
 
   for (const feat of col.features) {
-    const code = N2A[String(feat.id)];
+    // 50m stores IDs as zero-padded strings ("076"), 110m stored as integers (76)
+    // Number() strips leading zeros so N2A lookup works for both formats
+    const code = N2A[String(Number(feat.id))];
     if (!code) continue;
 
     const name     = nameByCode.get(code) ?? code;

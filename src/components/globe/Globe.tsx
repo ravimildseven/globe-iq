@@ -249,38 +249,112 @@ function flagEmoji(code: string) {
   ).join("");
 }
 
-// ─── Countries that always show a subtle name label on the globe ──────────────
-// Large / geographically recognizable nations — helps mobile users who can't hover.
-// Sorted roughly by land area to keep the most "spacious" labels first.
-const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number }[] = [
-  { code: "RU", name: "Russia",       lat: 61.52,  lng:  105.32 },
-  { code: "CA", name: "Canada",       lat: 56.13,  lng: -106.35 },
-  { code: "US", name: "United States",lat: 39.50,  lng: -98.35  },
-  { code: "BR", name: "Brazil",       lat: -10.0,  lng:  -53.0  },
-  { code: "AU", name: "Australia",    lat: -25.27, lng:  133.78 },
-  { code: "CN", name: "China",        lat:  36.00, lng:  103.0  },
-  { code: "IN", name: "India",        lat:  22.00, lng:   79.0  },
-  { code: "AR", name: "Argentina",    lat: -35.0,  lng:  -65.0  },
-  { code: "KZ", name: "Kazakhstan",   lat:  48.02, lng:   66.92 },
-  { code: "DZ", name: "Algeria",      lat:  28.03, lng:    3.0  },
-  { code: "CD", name: "DR Congo",     lat:  -3.0,  lng:   24.0  },
-  { code: "SA", name: "Saudi Arabia", lat:  25.0,  lng:   45.0  },
-  { code: "MX", name: "Mexico",       lat:  23.63, lng: -102.55 },
-  { code: "ID", name: "Indonesia",    lat:  -2.0,  lng:  118.0  },
-  { code: "NG", name: "Nigeria",      lat:   9.08, lng:    8.68 },
-  { code: "IR", name: "Iran",         lat:  32.43, lng:   53.69 },
-  { code: "PE", name: "Peru",         lat: -10.0,  lng:  -76.0  },
-  { code: "ET", name: "Ethiopia",     lat:   9.15, lng:   40.49 },
-  { code: "ZA", name: "South Africa", lat: -29.0,  lng:   25.0  },
-  { code: "CO", name: "Colombia",     lat:   4.57, lng:  -74.30 },
-  { code: "EG", name: "Egypt",        lat:  26.82, lng:   30.80 },
-  { code: "SD", name: "Sudan",        lat:  12.86, lng:   30.22 },
-  { code: "LY", name: "Libya",        lat:  26.34, lng:   17.23 },
-  { code: "VE", name: "Venezuela",    lat:   6.42, lng:  -66.59 },
-  { code: "PK", name: "Pakistan",     lat:  30.38, lng:   69.35 },
+// ─── All bordered countries get a name label — horizon-fade limits density ─────
+// The globe shows ~40-50 countries at any orientation; dot-product fade hides
+// labels near the limb, so crowding is naturally managed by the 3D geometry.
+const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number; small?: boolean }[] = [
+  // ── Largest nations (clear label space) ─────────────────────────────────────
+  { code: "RU", name: "Russia",         lat:  61.52, lng:  105.32 },
+  { code: "CA", name: "Canada",         lat:  56.13, lng: -106.35 },
+  { code: "US", name: "United States",  lat:  39.50, lng:  -98.35 },
+  { code: "CN", name: "China",          lat:  36.00, lng:  103.00 },
+  { code: "BR", name: "Brazil",         lat: -10.00, lng:  -53.00 },
+  { code: "AU", name: "Australia",      lat: -25.27, lng:  133.78 },
+  { code: "IN", name: "India",          lat:  22.00, lng:   79.00 },
+  { code: "AR", name: "Argentina",      lat: -35.00, lng:  -65.00 },
+  { code: "KZ", name: "Kazakhstan",     lat:  48.02, lng:   66.92 },
+  { code: "DZ", name: "Algeria",        lat:  28.03, lng:    3.00 },
+  { code: "CD", name: "DR Congo",       lat:  -4.04, lng:   21.76 },
+  { code: "SA", name: "Saudi Arabia",   lat:  25.00, lng:   45.00 },
+  { code: "MX", name: "Mexico",         lat:  23.63, lng: -102.55 },
+  { code: "ID", name: "Indonesia",      lat:  -0.79, lng:  113.92 },
+  { code: "SD", name: "Sudan",          lat:  12.86, lng:   30.22 },
+  { code: "LY", name: "Libya",          lat:  26.34, lng:   17.23 },
+  { code: "IR", name: "Iran",           lat:  32.43, lng:   53.69 },
+  { code: "MN", name: "Mongolia",       lat:  46.86, lng:  103.85 },
+  // ── Large nations ───────────────────────────────────────────────────────────
+  { code: "NG", name: "Nigeria",        lat:   9.08, lng:    8.68 },
+  { code: "ET", name: "Ethiopia",       lat:   9.15, lng:   40.49 },
+  { code: "ZA", name: "South Africa",   lat: -29.00, lng:   25.00 },
+  { code: "EG", name: "Egypt",          lat:  26.82, lng:   30.80 },
+  { code: "VE", name: "Venezuela",      lat:   6.42, lng:  -66.59 },
+  { code: "PK", name: "Pakistan",       lat:  30.38, lng:   69.35 },
+  { code: "CO", name: "Colombia",       lat:   4.57, lng:  -74.30 },
+  { code: "PE", name: "Peru",           lat:  -9.19, lng:  -75.02 },
+  { code: "AO", name: "Angola",         lat: -11.20, lng:   17.87 },
+  { code: "ML", name: "Mali",           lat:  17.57, lng:   -4.00 },
+  { code: "TD", name: "Chad",           lat:  15.45, lng:   18.73 },
+  { code: "NE", name: "Niger",          lat:  17.61, lng:    8.08 },
+  { code: "SO", name: "Somalia",        lat:   5.15, lng:   46.20 },
+  { code: "TZ", name: "Tanzania",       lat:  -6.37, lng:   34.89 },
+  { code: "MZ", name: "Mozambique",     lat: -18.67, lng:   35.53 },
+  { code: "ZM", name: "Zambia",         lat: -13.13, lng:   27.85 },
+  { code: "MM", name: "Myanmar",        lat:  21.91, lng:   95.96 },
+  { code: "AF", name: "Afghanistan",    lat:  33.94, lng:   67.71 },
+  { code: "TR", name: "Turkey",         lat:  38.96, lng:   35.24 },
+  { code: "UA", name: "Ukraine",        lat:  48.38, lng:   31.17 },
+  { code: "IQ", name: "Iraq",           lat:  33.22, lng:   43.68 },
+  { code: "MA", name: "Morocco",        lat:  31.79, lng:   -7.09 },
+  // ── Medium nations ──────────────────────────────────────────────────────────
+  { code: "UZ", name: "Uzbekistan",     lat:  41.38, lng:   64.59 },
+  { code: "NO", name: "Norway",         lat:  60.47, lng:    8.47 },
+  { code: "SE", name: "Sweden",         lat:  60.13, lng:   18.64 },
+  { code: "FI", name: "Finland",        lat:  61.92, lng:   25.75 },
+  { code: "BY", name: "Belarus",        lat:  53.71, lng:   27.95 },
+  { code: "ZW", name: "Zimbabwe",       lat: -19.02, lng:   29.15 },
+  { code: "DE", name: "Germany",        lat:  51.17, lng:   10.45 },
+  { code: "FR", name: "France",         lat:  46.23, lng:    2.21 },
+  { code: "GB", name: "UK",             lat:  55.38, lng:   -3.44 },
+  { code: "ES", name: "Spain",          lat:  40.46, lng:   -3.75 },
+  { code: "PL", name: "Poland",         lat:  51.92, lng:   19.15 },
+  { code: "MY", name: "Malaysia",       lat:   4.21, lng:  101.98 },
+  { code: "VN", name: "Vietnam",        lat:  14.06, lng:  108.28 },
+  { code: "JP", name: "Japan",          lat:  36.20, lng:  138.25 },
+  { code: "TH", name: "Thailand",       lat:  15.87, lng:  100.99 },
+  { code: "PH", name: "Philippines",    lat:  12.88, lng:  121.77 },
+  { code: "YE", name: "Yemen",          lat:  15.55, lng:   48.52 },
+  { code: "CL", name: "Chile",          lat: -35.68, lng:  -71.54 },
+  { code: "EC", name: "Ecuador",        lat:  -1.83, lng:  -78.18 },
+  { code: "BO", name: "Bolivia",        lat: -16.29, lng:  -63.59 },
+  { code: "CM", name: "Cameroon",       lat:   7.37, lng:   12.35 },
+  { code: "BF", name: "Burkina Faso",   lat:  12.24, lng:   -1.56 },
+  { code: "GH", name: "Ghana",          lat:   7.95, lng:   -1.02 },
+  { code: "UG", name: "Uganda",         lat:   1.37, lng:   32.29 },
+  { code: "KE", name: "Kenya",          lat:  -0.02, lng:   37.91 },
+  { code: "RO", name: "Romania",        lat:  45.94, lng:   24.97 },
+  { code: "NP", name: "Nepal",          lat:  28.39, lng:   84.12, small: true },
+  { code: "KH", name: "Cambodia",       lat:  12.57, lng:  104.99, small: true },
+  { code: "KP", name: "N. Korea",       lat:  40.34, lng:  127.51, small: true },
+  { code: "KR", name: "S. Korea",       lat:  35.91, lng:  127.77, small: true },
+  // ── Smaller nations (smaller text) ─────────────────────────────────────────
+  { code: "IT", name: "Italy",          lat:  41.87, lng:   12.57, small: true },
+  { code: "GR", name: "Greece",         lat:  39.07, lng:   21.82, small: true },
+  { code: "PT", name: "Portugal",       lat:  39.40, lng:   -8.22, small: true },
+  { code: "CZ", name: "Czechia",        lat:  49.82, lng:   15.47, small: true },
+  { code: "HU", name: "Hungary",        lat:  47.16, lng:   19.50, small: true },
+  { code: "SY", name: "Syria",          lat:  34.80, lng:   38.99, small: true },
+  { code: "TN", name: "Tunisia",        lat:  33.89, lng:    9.54, small: true },
+  { code: "BD", name: "Bangladesh",     lat:  23.68, lng:   90.36, small: true },
+  { code: "NZ", name: "New Zealand",    lat: -40.90, lng:  174.89, small: true },
+  { code: "CU", name: "Cuba",           lat:  21.52, lng:  -77.78, small: true },
+  { code: "IE", name: "Ireland",        lat:  53.14, lng:   -7.69, small: true },
+  { code: "NL", name: "Netherlands",    lat:  52.13, lng:    5.29, small: true },
+  { code: "CH", name: "Switzerland",    lat:  46.82, lng:    8.23, small: true },
+  { code: "AT", name: "Austria",        lat:  47.52, lng:   14.55, small: true },
+  { code: "GE", name: "Georgia",        lat:  42.32, lng:   43.36, small: true },
+  { code: "AZ", name: "Azerbaijan",     lat:  40.14, lng:   47.58, small: true },
+  { code: "AM", name: "Armenia",        lat:  40.07, lng:   45.04, small: true },
+  { code: "HR", name: "Croatia",        lat:  45.10, lng:   15.20, small: true },
+  { code: "RS", name: "Serbia",         lat:  44.02, lng:   21.01, small: true },
+  { code: "DK", name: "Denmark",        lat:  56.26, lng:    9.50, small: true },
+  { code: "JO", name: "Jordan",         lat:  30.59, lng:   36.24, small: true },
+  { code: "PA", name: "Panama",         lat:   8.54, lng:  -80.78, small: true },
+  { code: "PY", name: "Paraguay",       lat: -23.44, lng:  -58.44, small: true },
+  { code: "TW", name: "Taiwan",         lat:  23.70, lng:  120.96, small: true },
+  { code: "LA", name: "Laos",           lat:  17.96, lng:  102.50, small: true },
 ];
 
-// ─── Single muted label for one major country ─────────────────────────────────
+// ─── Single muted label for a country ────────────────────────────────────────
 function MajorCountryLabel({
   entry,
   hideCodes,
@@ -297,11 +371,12 @@ function MajorCountryLabel({
     setDot(d);
   });
 
-  // Hide if near the limb or behind the globe, or if hovered/selected
-  if (dot < 0.38 || hideCodes.has(entry.code)) return null;
+  // Small countries need a tighter limb threshold so they only show when well-centered
+  const threshold = entry.small ? 0.50 : 0.38;
+  if (dot < threshold || hideCodes.has(entry.code)) return null;
 
-  // Fade: 0.38 → 0.55 is the transition zone
-  const opacity = Math.min(1, (dot - 0.38) / 0.17) * 0.65;
+  // Fade: threshold → threshold+0.17 is the transition zone
+  const opacity = Math.min(1, (dot - threshold) / 0.17) * (entry.small ? 0.55 : 0.65);
 
   return (
     <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
@@ -312,8 +387,8 @@ function MajorCountryLabel({
         whiteSpace: "nowrap",
         display: "flex",
         alignItems: "center",
-        gap: 4,
-        padding: "2px 7px",
+        gap: entry.small ? 3 : 4,
+        padding: entry.small ? "1px 5px" : "2px 7px",
         borderRadius: 10,
         background: "rgba(4,10,24,0.55)",
         backdropFilter: "blur(6px)",
@@ -321,9 +396,9 @@ function MajorCountryLabel({
         border: "1px solid rgba(180,210,255,0.10)",
         transition: "opacity 200ms ease",
       }}>
-        <span style={{ fontSize: 11, lineHeight: 1 }}>{flagEmoji(entry.code)}</span>
+        <span style={{ fontSize: entry.small ? 9 : 11, lineHeight: 1 }}>{flagEmoji(entry.code)}</span>
         <span style={{
-          fontSize: 9,
+          fontSize: entry.small ? 7 : 9,
           fontWeight: 600,
           color: "rgba(200,220,255,0.75)",
           letterSpacing: "0.04em",
