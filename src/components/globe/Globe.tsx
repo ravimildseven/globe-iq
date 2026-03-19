@@ -5,13 +5,10 @@ import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls, Sphere, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { countryCentroids, latLngToVector3, findNearestCountry, CountryCentroid } from "@/lib/countries-geo";
-
-/* ── Major countries always show labels ── */
-const MAJOR_COUNTRIES = new Set([
-  "US","CN","RU","IN","BR","AU","CA","FR","DE","GB",
-  "JP","KR","SA","EG","NG","ZA","MX","AR","ID","TR",
-  "IT","ES","PK","UA","IR","TH","VN","PH","BD","ET",
-]);
+import {
+  loadCountryShapes, findCountryAtPoint, spherePointToLatLng,
+  type CountryShape,
+} from "@/lib/world-geo";
 
 interface GlobeProps {
   selectedCountry: CountryCentroid | null;
@@ -20,7 +17,7 @@ interface GlobeProps {
   onZoomHandled: () => void;
 }
 
-/* ── Real-time subsolar point for sun lighting ── */
+// ─── Real-time subsolar point ─────────────────────────────────────────────────
 function getSunPosition(): THREE.Vector3 {
   const now = new Date();
   const dayOfYear = Math.floor(
@@ -29,8 +26,8 @@ function getSunPosition(): THREE.Vector3 {
   const declination = -23.44 * Math.cos((2 * Math.PI * (dayOfYear + 10)) / 365);
   const hours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
   const sunLng = (12 - hours) * 15;
-  const phi   = (90 - declination) * (Math.PI / 180);
-  const theta = (sunLng + 180) * (Math.PI / 180);
+  const phi    = (90 - declination) * (Math.PI / 180);
+  const theta  = (sunLng + 180) * (Math.PI / 180);
   return new THREE.Vector3(
     -(Math.sin(phi) * Math.cos(theta)),
     Math.cos(phi),
@@ -38,298 +35,261 @@ function getSunPosition(): THREE.Vector3 {
   ).normalize();
 }
 
-/* ── Scene lights (affect atmosphere & markers) ── */
+// ─── Scene lights ─────────────────────────────────────────────────────────────
 function SunLight({ sunDir }: { sunDir: THREE.Vector3 }) {
-  const dirRef      = useRef<THREE.DirectionalLight>(null);
-  const earthRef    = useRef<THREE.DirectionalLight>(null);
+  const dirRef   = useRef<THREE.DirectionalLight>(null);
+  const earthRef = useRef<THREE.DirectionalLight>(null);
 
   useFrame(() => {
-    if (dirRef.current) {
-      dirRef.current.position.set(sunDir.x * 10, sunDir.y * 10, sunDir.z * 10);
-    }
-    if (earthRef.current) {
-      earthRef.current.position.set(-sunDir.x * 4, -sunDir.y * 3, -sunDir.z * 4);
-    }
+    dirRef.current?.position.set(sunDir.x * 10, sunDir.y * 10, sunDir.z * 10);
+    earthRef.current?.position.set(-sunDir.x * 4, -sunDir.y * 3, -sunDir.z * 4);
   });
 
   return (
     <>
-      {/* Primary warm sunlight */}
-      <directionalLight
-        ref={dirRef}
-        position={[sunDir.x * 10, sunDir.y * 10, sunDir.z * 10]}
-        intensity={2.2}
-        color="#FFF5E0"
-      />
-      {/* Dim ambient — deep space starlight */}
+      <directionalLight ref={dirRef} position={[sunDir.x * 10, sunDir.y * 10, sunDir.z * 10]}
+        intensity={2.2} color="#FFF5E0" />
       <ambientLight intensity={0.15} color="#8AA8D0" />
-      {/* Earthshine fill from opposite side */}
-      <directionalLight
-        ref={earthRef}
+      <directionalLight ref={earthRef}
         position={[-sunDir.x * 4, -sunDir.y * 3, -sunDir.z * 4]}
-        intensity={0.22}
-        color="#3A5A8A"
-      />
+        intensity={0.22} color="#3A5A8A" />
     </>
   );
 }
 
-/* ── Day/Night custom shader ── */
+// ─── Day / Night GLSL shader ──────────────────────────────────────────────────
 const DAY_NIGHT_VERT = /* glsl */ `
   varying vec2  vUv;
   varying vec3  vWorldNormal;
-
   void main() {
     vUv          = uv;
     vWorldNormal = normalize(mat3(modelMatrix) * normal);
     gl_Position  = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
-
 const DAY_NIGHT_FRAG = /* glsl */ `
   uniform sampler2D dayTexture;
   uniform sampler2D nightTexture;
-  uniform vec3      sunDirection;   // world-space unit vector toward sun
-
+  uniform vec3      sunDirection;
   varying vec2 vUv;
   varying vec3 vWorldNormal;
-
   void main() {
     vec4 dayColor   = texture2D(dayTexture,   vUv);
     vec4 nightColor = texture2D(nightTexture, vUv);
-
-    float cosAngle = dot(normalize(vWorldNormal), normalize(sunDirection));
-
-    // ── Smooth terminator blend (±12° twilight zone) ──────────────────────
-    float dayMix = smoothstep(-0.12, 0.12, cosAngle);
-
-    // ── Day side: Lambertian diffuse + minimal deep-space ambient ──────────
-    float diffuse = max(cosAngle, 0.0);
-    vec4  litDay  = dayColor * (0.07 + diffuse * 0.94);
-
-    // ── Night side: city lights (boosted) + faint earthshine ──────────────
-    // Earthshine: reflected sunlight from Earth's oceans onto night side —
-    // makes continents subtly visible in cool blue-grey.
-    vec4 earthshine = dayColor * 0.09 * vec4(0.45, 0.55, 0.80, 1.0);
-    vec4 litNight   = nightColor * 1.65 + earthshine;
-
-    // ── Twilight: warm golden glow at horizon ──────────────────────────────
-    float twilight     = 1.0 - abs(cosAngle / 0.12) * step(-0.12, cosAngle) * step(cosAngle, 0.12);
-    vec4  twilightGlow = vec4(1.0, 0.75, 0.3, 0.0) * twilight * 0.12;
-
-    gl_FragColor = mix(litNight, litDay, dayMix) + twilightGlow;
+    float cosAngle  = dot(normalize(vWorldNormal), normalize(sunDirection));
+    float dayMix    = smoothstep(-0.12, 0.12, cosAngle);
+    float diffuse   = max(cosAngle, 0.0);
+    vec4  litDay    = dayColor * (0.07 + diffuse * 0.94);
+    vec4  earthshine = dayColor * 0.09 * vec4(0.45, 0.55, 0.80, 1.0);
+    vec4  litNight   = nightColor * 1.65 + earthshine;
+    float twilight   = (1.0 - smoothstep(0.0, 0.12, abs(cosAngle))) * 0.12;
+    gl_FragColor = mix(litNight, litDay, dayMix) + vec4(1.0, 0.75, 0.3, 0.0) * twilight;
     gl_FragColor.a = 1.0;
   }
 `;
 
-/* ── Atmospheric halo rings ── */
+// ─── Atmosphere ───────────────────────────────────────────────────────────────
 function Atmosphere() {
   return (
     <>
-      {/* Inner thin blue haze */}
       <Sphere args={[1.012, 64, 64]}>
-        <meshStandardMaterial color="#5BB8FF" transparent opacity={0.06} side={THREE.FrontSide} depthWrite={false} />
+        <meshStandardMaterial color="#5BB8FF" transparent opacity={0.06}
+          side={THREE.FrontSide} depthWrite={false} />
       </Sphere>
-      {/* Outer soft glow */}
       <Sphere args={[1.07, 64, 64]}>
-        <meshBasicMaterial color="#6EC6FF" transparent opacity={0.025} side={THREE.BackSide} depthWrite={false} />
+        <meshBasicMaterial color="#6EC6FF" transparent opacity={0.025}
+          side={THREE.BackSide} depthWrite={false} />
       </Sphere>
     </>
   );
 }
 
-/* ── Idle beacon — slow radar ping on major unselected countries ── */
-function IdleBeacon({ position, phaseOffset }: {
-  position: [number, number, number];
-  phaseOffset: number;
+// ─── All country border lines in a single draw call ───────────────────────────
+function CountryBordersLayer({ shapes }: { shapes: CountryShape[] }) {
+  const geometry = useMemo(() => {
+    if (!shapes.length) return null;
+    const positions: number[] = [];
+
+    for (const shape of shapes) {
+      for (const polygon of shape.polygons) {
+        for (const ring of polygon) {
+          for (let i = 0; i < ring.length - 1; i++) {
+            const [lng1, lat1] = ring[i];
+            const [lng2, lat2] = ring[i + 1];
+            const [x1, y1, z1] = latLngToVector3(lat1, lng1, 1.002);
+            const [x2, y2, z2] = latLngToVector3(lat2, lng2, 1.002);
+            positions.push(x1, y1, z1, x2, y2, z2);
+          }
+        }
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geo;
+  }, [shapes]);
+
+  if (!geometry) return null;
+
+  return (
+    <lineSegments geometry={geometry}>
+      {/* White 18% — cartographic, not UI. Disappears on bright terrain,
+          shows over dark ocean. Screen-blend feel without actual blend mode. */}
+      <lineBasicMaterial color="#FFFFFF" transparent opacity={0.18} />
+    </lineSegments>
+  );
+}
+
+// ─── Active country border outline (hover / selected) ────────────────────────
+function CountryOutline({ shape, color, opacity }: {
+  shape: CountryShape;
+  color: string;
+  opacity: number;
 }) {
-  const ref    = useRef<THREE.Mesh>(null);
-  const tRef   = useRef(phaseOffset);
-  const CYCLE  = 3.8; // seconds per pulse
-  const normal = new THREE.Vector3(...position).normalize();
-  const quat   = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-
-  useFrame((_, delta) => {
-    if (!ref.current) return;
-    tRef.current = (tRef.current + delta) % CYCLE;
-    const t = tRef.current / CYCLE;              // 0 → 1
-    ref.current.scale.setScalar(1 + t * 2.8);   // 1× → 3.8×
-    (ref.current.material as THREE.MeshBasicMaterial).opacity =
-      Math.max(0, 0.38 * (1 - t * t));           // fast-in, slow fade
-  });
+  const geometry = useMemo(() => {
+    const positions: number[] = [];
+    for (const polygon of shape.polygons) {
+      const ring = polygon[0]; // outer ring only
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [lng1, lat1] = ring[i];
+        const [lng2, lat2] = ring[i + 1];
+        const [x1, y1, z1] = latLngToVector3(lat1, lng1, 1.004);
+        const [x2, y2, z2] = latLngToVector3(lat2, lng2, 1.004);
+        positions.push(x1, y1, z1, x2, y2, z2);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geo;
+  }, [shape]);
 
   return (
-    <mesh position={position} quaternion={quat} ref={ref}>
-      <ringGeometry args={[0.020, 0.028, 24]} />
-      <meshBasicMaterial color="#F59E0B" transparent opacity={0.38} side={THREE.DoubleSide} />
+    <lineSegments geometry={geometry}>
+      <lineBasicMaterial color={color} transparent opacity={opacity} />
+    </lineSegments>
+  );
+}
+
+// ─── Hover / selected country fill (fan-triangulated) ────────────────────────
+function CountryFill({ shape, color, opacity }: {
+  shape: CountryShape;
+  color: string;
+  opacity: number;
+}) {
+  const geometry = useMemo(() => {
+    const positions: number[] = [];
+
+    for (const polygon of shape.polygons) {
+      const outer = polygon[0];  // use outer ring only for fill
+      if (outer.length < 3) continue;
+
+      // Centroid of this ring for fan triangulation
+      let cx = 0, cy = 0;
+      for (const [lng, lat] of outer) { cx += lng; cy += lat; }
+      cx /= outer.length; cy /= outer.length;
+
+      const [ocx, ocy, ocz] = latLngToVector3(cy, cx, 1.003);
+
+      for (let i = 0; i < outer.length - 1; i++) {
+        const [lng1, lat1] = outer[i];
+        const [lng2, lat2] = outer[i + 1];
+        const [x1, y1, z1] = latLngToVector3(lat1, lng1, 1.003);
+        const [x2, y2, z2] = latLngToVector3(lat2, lng2, 1.003);
+        positions.push(ocx, ocy, ocz, x1, y1, z1, x2, y2, z2);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return geo;
+  }, [shape]);
+
+  return (
+    <mesh geometry={geometry}>
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={opacity}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
     </mesh>
   );
 }
 
-/* ── Animated pulse ring for selected country ── */
-function SelectedPulse({ position }: { position: [number, number, number] }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const normal = new THREE.Vector3(...position).normalize();
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-
-  useFrame((_, delta) => {
-    if (ref.current) ref.current.rotation.z += delta * 0.6;
-  });
-
-  return (
-    <mesh position={position} quaternion={quat} ref={ref}>
-      <ringGeometry args={[0.032, 0.046, 32]} />
-      <meshBasicMaterial color="#F59E0B" transparent opacity={0.75} side={THREE.DoubleSide} />
-    </mesh>
-  );
-}
-
-/* ── Outer expanding ring (animated outward) ── */
+// ─── Expanding selection ring ─────────────────────────────────────────────────
 function ExpandingRing({ position }: { position: [number, number, number] }) {
-  const ref = useRef<THREE.Mesh>(null);
-  const scaleRef = useRef(1);
-  const opacityRef = useRef(0.6);
-  const normal = new THREE.Vector3(...position).normalize();
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  const ref       = useRef<THREE.Mesh>(null);
+  const scaleRef  = useRef(1);
+  const opacRef   = useRef(0.6);
+  const normal    = new THREE.Vector3(...position).normalize();
+  const quat      = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
 
-  useFrame((_, delta) => {
+  useFrame((_, d) => {
     if (!ref.current) return;
-    scaleRef.current += delta * 0.8;
-    opacityRef.current -= delta * 0.4;
-    if (scaleRef.current > 2.5) { scaleRef.current = 1; opacityRef.current = 0.6; }
+    scaleRef.current += d * 0.8;
+    opacRef.current  -= d * 0.4;
+    if (scaleRef.current > 2.5) { scaleRef.current = 1; opacRef.current = 0.6; }
     ref.current.scale.setScalar(scaleRef.current);
-    (ref.current.material as THREE.MeshBasicMaterial).opacity = Math.max(0, opacityRef.current);
+    (ref.current.material as THREE.MeshBasicMaterial).opacity = Math.max(0, opacRef.current);
   });
 
   return (
     <mesh position={position} quaternion={quat} ref={ref}>
-      <ringGeometry args={[0.028, 0.034, 32]} />
+      <ringGeometry args={[0.028, 0.036, 32]} />
       <meshBasicMaterial color="#F59E0B" transparent opacity={0.6} side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
-/* ── Per-country dot + label ── */
-function CountryMarker({
-  country, isSelected, isHovered, isMajor, phaseOffset, onClick, onHover, onUnhover,
-}: {
+// ─── Country label ────────────────────────────────────────────────────────────
+function CountryLabel({ country, isSelected }: {
   country: CountryCentroid;
   isSelected: boolean;
-  isHovered: boolean;
-  isMajor: boolean;
-  phaseOffset: number;
-  onClick: () => void;
-  onHover: () => void;
-  onUnhover: () => void;
 }) {
-  const dotRef   = useRef<THREE.Mesh>(null);
-  const [isFront, setIsFront] = useState(true);
+  const labelPos = latLngToVector3(country.lat, country.lng, 1.05);
   const { camera } = useThree();
-
-  const pos      = latLngToVector3(country.lat, country.lng, 1.006);
-  const labelPos = latLngToVector3(country.lat, country.lng, 1.045);
+  const [visible, setVisible] = useState(true);
 
   useFrame(() => {
-    if (!dotRef.current) return;
-    const target = isSelected ? 0.024 : isHovered ? 0.020 : isMajor ? 0.013 : 0.008;
-    const s = dotRef.current.scale.x;
-    dotRef.current.scale.setScalar(s + (target - s) * 0.18);
-
-    const d = new THREE.Vector3(...pos).normalize().dot(camera.position.clone().normalize());
-    setIsFront(d > 0.08);
+    const d = new THREE.Vector3(...labelPos).normalize().dot(camera.position.clone().normalize());
+    setVisible(d > 0.1);
   });
 
-  // Warm amber for major countries — signals "tappable hotspot"
-  const dotColor = isSelected ? "#F59E0B" : isHovered ? "#FDE68A" : isMajor ? "#FBBF24" : "#7DD3FC";
-  const dotOpacity = isFront
-    ? (isSelected ? 1 : isHovered ? 1 : isMajor ? 0.75 : 0.40)
-    : 0;
-
-  const showLabel  = isFront && (isSelected || isHovered || isMajor);
-  const showBeacon = isFront && isMajor && !isSelected && !isHovered;
+  if (!visible) return null;
 
   return (
-    <group>
-      {/* Large invisible hit area */}
-      <mesh
-        position={pos}
-        onClick={e => { e.stopPropagation(); onClick(); }}
-        onPointerOver={e => {
-          e.stopPropagation();
-          onHover();
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          onUnhover();
-          document.body.style.cursor = "";
-        }}
-        visible={false}
-      >
-        <sphereGeometry args={[0.045, 8, 8]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
-
-      {/* Visible dot */}
-      <mesh ref={dotRef} position={pos}>
-        <sphereGeometry args={[1, 8, 8]} />
-        <meshBasicMaterial color={dotColor} transparent opacity={dotOpacity} />
-      </mesh>
-
-      {/* Idle beacon — invites interaction before any click */}
-      {showBeacon && <IdleBeacon position={pos} phaseOffset={phaseOffset} />}
-
-      {/* Selected rings */}
-      {isSelected && isFront && <SelectedPulse position={pos} />}
-      {isSelected && isFront && <ExpandingRing position={pos} />}
-
-      {/* Country label */}
-      {showLabel && (
-        <Html
-          position={labelPos}
-          center
-          style={{ pointerEvents: "none", userSelect: "none" }}
-          zIndexRange={[10, 0]}
-          occlude={false}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-heading)",
-              whiteSpace: "nowrap",
-              transition: "all 0.2s ease",
-              ...(isSelected ? {
-                background: "rgba(245, 158, 11, 0.9)",
-                color: "#020617",
-                padding: "3px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 700,
-                boxShadow: "0 0 12px rgba(245,158,11,0.4)",
-              } : isHovered ? {
-                background: "rgba(11, 17, 32, 0.85)",
-                color: "#F0F4FF",
-                border: "1px solid rgba(245,158,11,0.35)",
-                backdropFilter: "blur(8px)",
-                padding: "3px 8px",
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 500,
-              } : {
-                color: "rgba(255,255,255,0.55)",
-                fontSize: 10,
-                fontWeight: 500,
-                textShadow: "0 1px 3px rgba(0,0,0,0.9)",
-              })
-            }}
-          >
-            {country.name}
-          </div>
-        </Html>
-      )}
-    </group>
+    <Html position={labelPos} center style={{ pointerEvents: "none", userSelect: "none" }}
+      zIndexRange={[10, 0]} occlude={false}>
+      <div style={{
+        fontFamily: "var(--font-heading)",
+        whiteSpace: "nowrap",
+        ...(isSelected ? {
+          background: "rgba(245,158,11,0.92)",
+          color: "#020617",
+          padding: "3px 9px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          boxShadow: "0 0 14px rgba(245,158,11,0.5)",
+        } : {
+          background: "rgba(11,17,32,0.82)",
+          color: "#E0EEFF",
+          border: "1px solid rgba(168,200,232,0.35)",
+          backdropFilter: "blur(8px)",
+          padding: "3px 8px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontWeight: 500,
+        })
+      }}>
+        {country.name}
+      </div>
+    </Html>
   );
 }
 
-/* ── Main globe with day/night shader ── */
+// ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
   selectedCountry, onCountrySelect, onInteractionStart, sunDir,
 }: {
@@ -338,9 +298,17 @@ function EarthGlobe({
   onInteractionStart: () => void;
   sunDir: THREE.Vector3;
 }) {
-  const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
+  const [shapes, setShapes]           = useState<CountryShape[]>([]);
+  const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
+  const [hoveredCentroid, setHoveredCentroid] = useState<CountryCentroid | null>(null);
   const shaderRef = useRef<THREE.ShaderMaterial>(null);
 
+  // Load world GeoJSON once
+  useEffect(() => {
+    loadCountryShapes(countryCentroids).then(setShapes).catch(console.error);
+  }, []);
+
+  // Textures
   const earthTexture = useLoader(THREE.TextureLoader,
     "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg");
   const nightTexture = useLoader(THREE.TextureLoader,
@@ -353,7 +321,6 @@ function EarthGlobe({
     nightTexture.anisotropy = 16;
   }, [earthTexture, nightTexture]);
 
-  /* Build shader uniforms once; update sunDirection every frame via ref */
   const uniforms = useMemo(() => ({
     dayTexture:   { value: earthTexture },
     nightTexture: { value: nightTexture },
@@ -361,31 +328,62 @@ function EarthGlobe({
   }), [earthTexture, nightTexture]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame(() => {
-    if (shaderRef.current) {
-      shaderRef.current.uniforms.sunDirection.value.copy(sunDir);
-    }
+    shaderRef.current?.uniforms.sunDirection.value.copy(sunDir);
   });
 
+  // ── Pointer move → find country by polygon ──────────────────────────────────
   const handlePointerMove = useCallback((e: any) => {
     if (!e.point) return;
-    setHoveredCountry(findNearestCountry(e.point));
-  }, []);
+    const { lat, lng } = spherePointToLatLng(e.point);
 
+    const shape = shapes.length
+      ? findCountryAtPoint(lat, lng, shapes)
+      : null;
+
+    setHoveredShape(shape);
+
+    if (shape) {
+      const c = countryCentroids.find(x => x.code === shape.code) ?? null;
+      setHoveredCentroid(c);
+      document.body.style.cursor = "pointer";
+    } else {
+      setHoveredCentroid(null);
+      document.body.style.cursor = "";
+    }
+  }, [shapes]);
+
+  // ── Click → select country ──────────────────────────────────────────────────
   const handleClick = useCallback((e: any) => {
     if (!e.point) return;
     onInteractionStart();
-    const country = findNearestCountry(e.point);
-    if (country) onCountrySelect(country);
-  }, [onCountrySelect, onInteractionStart]);
+    const { lat, lng } = spherePointToLatLng(e.point);
+
+    const shape = shapes.length ? findCountryAtPoint(lat, lng, shapes) : null;
+    if (shape) {
+      const c = countryCentroids.find(x => x.code === shape.code);
+      if (c) { onCountrySelect(c); return; }
+    }
+    // Fallback: nearest centroid
+    const nearest = findNearestCountry(e.point);
+    if (nearest) onCountrySelect(nearest);
+  }, [shapes, onCountrySelect, onInteractionStart]);
+
+  const selectedShape = selectedCountry
+    ? shapes.find(s => s.code === selectedCountry.code) ?? null
+    : null;
 
   return (
     <group>
-      {/* Earth sphere with day/night shader */}
+      {/* Earth sphere — day/night shader */}
       <Sphere
         args={[1, 128, 128]}
         onClick={handleClick}
         onPointerMove={handlePointerMove}
-        onPointerOut={() => setHoveredCountry(null)}
+        onPointerOut={() => {
+          setHoveredShape(null);
+          setHoveredCentroid(null);
+          document.body.style.cursor = "";
+        }}
       >
         <shaderMaterial
           ref={shaderRef}
@@ -395,30 +393,53 @@ function EarthGlobe({
         />
       </Sphere>
 
-      <Atmosphere />
+      {/* Country border lines */}
+      <CountryBordersLayer shapes={shapes} />
 
-      {/* Country markers */}
-      {countryCentroids.map((c, i) => (
-        <CountryMarker
-          key={c.code}
-          country={c}
-          isSelected={selectedCountry?.code === c.code}
-          isHovered={hoveredCountry?.code === c.code}
-          isMajor={MAJOR_COUNTRIES.has(c.code)}
-          phaseOffset={(i * 0.55) % 3.8}   // stagger beacons across the globe
-          onClick={() => { onInteractionStart(); onCountrySelect(c); }}
-          onHover={() => setHoveredCountry(c)}
-          onUnhover={() => setHoveredCountry(null)}
-        />
-      ))}
+      {/* ── Hover state: amber fill 10% + amber outline 55% ── */}
+      {hoveredShape && !selectedShape && (
+        <>
+          <CountryFill    shape={hoveredShape} color="#F59E0B" opacity={0.10} />
+          <CountryOutline shape={hoveredShape} color="#F59E0B" opacity={0.55} />
+        </>
+      )}
+
+      {/* ── Selected state: amber fill 20% + soft glow layer + full amber outline ── */}
+      {selectedShape && (
+        <>
+          {/* Glow halo — wider, very faint */}
+          <CountryFill    shape={selectedShape} color="#F59E0B" opacity={0.08} />
+          {/* Main fill */}
+          <CountryFill    shape={selectedShape} color="#F59E0B" opacity={0.20} />
+          {/* Full amber border */}
+          <CountryOutline shape={selectedShape} color="#F59E0B" opacity={1.0}  />
+        </>
+      )}
+
+      {/* Expanding ring at selected centroid */}
+      {selectedCountry && (() => {
+        const pos = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1.004);
+        return <ExpandingRing position={pos} />;
+      })()}
+
+      {/* Labels for hovered + selected */}
+      {hoveredCentroid && hoveredCentroid.code !== selectedCountry?.code && (
+        <CountryLabel country={hoveredCentroid} isSelected={false} />
+      )}
+      {selectedCountry && (
+        <CountryLabel country={selectedCountry} isSelected />
+      )}
+
+      <Atmosphere />
     </group>
   );
 }
 
-/* ── Camera zoom controller ── */
-function CameraController({ zoomDelta, onZoomHandled }: { zoomDelta: number; onZoomHandled: () => void }) {
+// ─── Camera zoom controller ───────────────────────────────────────────────────
+function CameraController({ zoomDelta, onZoomHandled }: {
+  zoomDelta: number; onZoomHandled: () => void;
+}) {
   const { camera } = useThree();
-
   useEffect(() => {
     if (zoomDelta === 0) return;
     const dir  = camera.position.clone().normalize();
@@ -426,40 +447,31 @@ function CameraController({ zoomDelta, onZoomHandled }: { zoomDelta: number; onZ
     camera.position.copy(dir.multiplyScalar(dist));
     onZoomHandled();
   }, [zoomDelta, camera, onZoomHandled]);
-
   return null;
 }
 
-/* ── Auto-rotate via OrbitControls ── */
+// ─── Auto-rotate ──────────────────────────────────────────────────────────────
 function AutoRotate({ enabled }: { enabled: boolean }) {
   const ctrlRef = useRef<any>(null);
-
   useFrame(() => {
     if (ctrlRef.current) {
       ctrlRef.current.autoRotate      = enabled;
       ctrlRef.current.autoRotateSpeed = 0.35;
     }
   });
-
   return (
-    <OrbitControls
-      ref={ctrlRef}
-      enablePan={false}
-      enableZoom={true}
-      minDistance={1.5}
-      maxDistance={4.5}
-      dampingFactor={0.06}
-      enableDamping
-    />
+    <OrbitControls ref={ctrlRef} enablePan={false} enableZoom
+      minDistance={1.5} maxDistance={4.5} dampingFactor={0.06} enableDamping />
   );
 }
 
-/* ── Scene root — owns sun direction state shared across lights + shader ── */
+// ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
-  selectedCountry, onCountrySelect, onInteractionStart, zoomDelta, onZoomHandled, isInteracting,
+  selectedCountry, onCountrySelect, onInteractionStart,
+  zoomDelta, onZoomHandled, isInteracting,
 }: {
   selectedCountry: CountryCentroid | null;
-  onCountrySelect: (country: CountryCentroid) => void;
+  onCountrySelect: (c: CountryCentroid) => void;
   onInteractionStart: () => void;
   zoomDelta: number;
   onZoomHandled: () => void;
@@ -468,7 +480,6 @@ function SceneRoot({
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
   useFrame(() => {
-    // Recalculate ~once per minute (1/3600 per-frame chance at ~60fps ≈ once per minute)
     if (Math.random() < 0.0003) sunDir.current.copy(getSunPosition());
   });
 
@@ -487,7 +498,7 @@ function SceneRoot({
   );
 }
 
-/* ── Loading fallback ── */
+// ─── Loading fallback ─────────────────────────────────────────────────────────
 function LoadingFallback() {
   return (
     <Sphere args={[1, 32, 32]}>
@@ -496,7 +507,7 @@ function LoadingFallback() {
   );
 }
 
-/* ── Root export ── */
+// ─── Root export ──────────────────────────────────────────────────────────────
 export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled }: GlobeProps) {
   const [isInteracting, setIsInteracting] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
