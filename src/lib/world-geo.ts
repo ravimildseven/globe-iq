@@ -1,6 +1,6 @@
 import { feature as topoFeature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
-import type { FeatureCollection, Polygon, MultiPolygon } from "geojson";
+import type { FeatureCollection, Feature, Polygon, MultiPolygon } from "geojson";
 import type { CountryCentroid } from "./countries-geo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,14 +38,42 @@ const N2A: Record<string, string> = {
 // ─── Module-level cache (single fetch per process) ────────────────────────────
 let cache: CountryShape[] | null = null;
 
+// ─── India official boundary (GOI claimed territory incl. full J&K + Aksai Chin) ─
+async function loadIndiaOverride(): Promise<Array<[number, number][][]>> {
+  const res = await fetch("/geo/india-official.geojson");
+  if (!res.ok) throw new Error(`India GeoJSON HTTP ${res.status}`);
+  const data = await res.json();
+  const polygons: Array<[number, number][][]> = [];
+  const feats: Feature<Polygon | MultiPolygon>[] =
+    data.type === "FeatureCollection" ? data.features : [data];
+  for (const feat of feats) {
+    const geom = (feat.geometry ?? feat) as Polygon | MultiPolygon;
+    if (geom.type === "Polygon") {
+      polygons.push(geom.coordinates as [number, number][][]);
+    } else if (geom.type === "MultiPolygon") {
+      for (const poly of geom.coordinates) {
+        polygons.push(poly as [number, number][][]);
+      }
+    }
+  }
+  return polygons;
+}
+
 // ─── Load + convert world-atlas TopoJSON → CountryShape[] ─────────────────────
 export async function loadCountryShapes(
   centroids: CountryCentroid[]
 ): Promise<CountryShape[]> {
   if (cache) return cache;
 
-  const res  = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-  const topo = (await res.json()) as Topology;
+  // Fetch 50m world topology + India official boundary in parallel
+  const [topo, indiaPolygons] = await Promise.all([
+    fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json")
+      .then(r => r.json()) as Promise<Topology>,
+    loadIndiaOverride().catch(() => {
+      console.warn("[globe-iq] India boundary override missing — using world-atlas fallback");
+      return [] as Array<[number, number][][]>;
+    }),
+  ]);
 
   const nameByCode = new Map(centroids.map(c => [c.code, c.name]));
 
@@ -61,7 +89,7 @@ export async function loadCountryShapes(
     if (!code) continue;
 
     const name     = nameByCode.get(code) ?? code;
-    const polygons: Array<[number, number][][]> = [];
+    let polygons: Array<[number, number][][]> = [];
 
     if (feat.geometry.type === "Polygon") {
       polygons.push(feat.geometry.coordinates as [number, number][][]);
@@ -71,7 +99,19 @@ export async function loadCountryShapes(
       }
     }
 
+    // Apply India's official GOI claimed boundary (full J&K, Aksai Chin, Arunachal Pradesh)
+    if (code === "IN" && indiaPolygons.length > 0) {
+      polygons = indiaPolygons;
+    }
+
     shapes.push({ code, name, polygons });
+  }
+
+  // India wins hit-test in overlapping disputed zones (J&K vs PK, Aksai Chin vs CN)
+  const indiaIdx = shapes.findIndex(s => s.code === "IN");
+  if (indiaIdx > 0) {
+    const [india] = shapes.splice(indiaIdx, 1);
+    shapes.unshift(india);
   }
 
   cache = shapes;
