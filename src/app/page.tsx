@@ -6,6 +6,7 @@ import { CountryCentroid } from "@/lib/countries-geo";
 import InfoPanel from "@/components/panel/InfoPanel";
 import AmbientSound from "@/components/ui/AmbientSound";
 import CountrySearch from "@/components/search/CountrySearch";
+import AboutPanel from "@/components/ui/AboutPanel";
 import { Globe2, Plus, Minus } from "lucide-react";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
@@ -187,8 +188,11 @@ export default function Home() {
           </span>
         </div>
 
-        {/* UTC clock */}
-        <UTCClock />
+        {/* About + UTC clock */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <AboutPanel />
+          <UTCClock />
+        </div>
       </div>
     </main>
   );
