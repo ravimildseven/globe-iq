@@ -361,6 +361,8 @@ const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number;
 ];
 
 // ─── Single muted label for a country ────────────────────────────────────────
+// NOTE: opacity is driven by direct DOM mutation in useFrame — NOT React state.
+// setState inside useFrame would cause 60 re-renders/sec × N labels = jank.
 function MajorCountryLabel({
   entry,
   hideCodes,
@@ -368,27 +370,27 @@ function MajorCountryLabel({
   entry: typeof LABELED_COUNTRIES[number];
   hideCodes: Set<string>;
 }) {
-  const pos = latLngToVector3(entry.lat, entry.lng, 1.055);
+  const pos    = useMemo(() => latLngToVector3(entry.lat, entry.lng, 1.055), [entry.lat, entry.lng]);
+  const posVec = useMemo(() => new THREE.Vector3(...pos).normalize(), [pos]);
   const { camera } = useThree();
-  const [dot, setDot] = useState(0);
+  const divRef = useRef<HTMLDivElement>(null);
+
+  const threshold  = entry.small ? 0.50 : 0.38;
+  const maxOpacity = entry.small ? 0.55 : 0.65;
 
   useFrame(() => {
-    const d = new THREE.Vector3(...pos).normalize().dot(camera.position.clone().normalize());
-    setDot(d);
+    if (!divRef.current) return;
+    const d = posVec.dot(camera.position.clone().normalize());
+    const hidden  = d < threshold || hideCodes.has(entry.code);
+    const opacity = hidden ? 0 : Math.min(1, (d - threshold) / 0.17) * maxOpacity;
+    divRef.current.style.opacity = String(opacity);
   });
-
-  // Small countries need a tighter limb threshold so they only show when well-centered
-  const threshold = entry.small ? 0.50 : 0.38;
-  if (dot < threshold || hideCodes.has(entry.code)) return null;
-
-  // Fade: threshold → threshold+0.17 is the transition zone
-  const opacity = Math.min(1, (dot - threshold) / 0.17) * (entry.small ? 0.55 : 0.65);
 
   return (
     <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
       zIndexRange={[5, 0]} occlude={false}>
-      <div style={{
-        opacity,
+      <div ref={divRef} style={{
+        opacity: 0,
         fontFamily: "var(--font-heading)",
         whiteSpace: "nowrap",
         display: "flex",
@@ -408,7 +410,7 @@ function MajorCountryLabel({
           fontWeight: 600,
           color: "var(--globe-label-text, rgba(200,220,255,0.75))",
           letterSpacing: "0.04em",
-          textTransform: "uppercase",
+          textTransform: "uppercase" as const,
         }}>
           {entry.name}
         </span>
@@ -443,21 +445,22 @@ function MajorCountryLabels({
 
 // ─── Selected-country centroid label (amber pill, 3-D anchored) ───────────────
 function SelectedLabel({ country }: { country: CountryCentroid }) {
-  const labelPos = latLngToVector3(country.lat, country.lng, 1.06);
+  const labelPos = useMemo(() => latLngToVector3(country.lat, country.lng, 1.06), [country.lat, country.lng]);
+  const posVec   = useMemo(() => new THREE.Vector3(...labelPos).normalize(), [labelPos]);
   const { camera } = useThree();
-  const [visible, setVisible] = useState(true);
+  const divRef = useRef<HTMLDivElement>(null);
 
   useFrame(() => {
-    const d = new THREE.Vector3(...labelPos).normalize().dot(camera.position.clone().normalize());
-    setVisible(d > 0.15);
+    if (!divRef.current) return;
+    const d = posVec.dot(camera.position.clone().normalize());
+    divRef.current.style.opacity = d > 0.15 ? "1" : "0";
   });
-
-  if (!visible) return null;
 
   return (
     <Html position={labelPos} center style={{ pointerEvents: "none", userSelect: "none" }}
       zIndexRange={[10, 0]} occlude={false}>
-      <div style={{
+      <div ref={divRef} style={{
+        opacity: 0,
         fontFamily: "var(--font-heading)",
         whiteSpace: "nowrap",
         display: "flex",
@@ -470,6 +473,7 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
         fontSize: 11,
         fontWeight: 700,
         boxShadow: "0 0 14px rgba(245,158,11,0.5)",
+        transition: "opacity 150ms ease",
       }}>
         <span style={{ fontSize: 13 }}>{flagEmoji(country.code)}</span>
         {country.name}
