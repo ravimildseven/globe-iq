@@ -95,7 +95,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
     <>
       {/* Backdrop on mobile */}
       <div
-        className="overlay-enter fixed inset-0 bg-black/40 backdrop-blur-sm z-40 sm:hidden"
+        className="overlay-enter fixed inset-0 bg-black/30 backdrop-blur-sm z-40 sm:hidden"
         onClick={onClose}
       />
 
@@ -107,7 +107,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
           <div
             className="absolute inset-0"
             style={{
-              background: "linear-gradient(135deg, #0B1120 0%, #141B2D 60%, #0B1120 100%)",
+              background: "linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-elevated) 60%, var(--color-bg-card) 100%)",
             }}
           />
           {/* Accent glow top edge */}
@@ -134,7 +134,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
                   <img
                     src={countryInfo.flagUrl}
                     alt={`${countryInfo.name} flag`}
-                    className="w-14 h-10 rounded-md object-cover shadow-lg border border-white/10"
+                    className="w-14 h-10 rounded-md object-cover shadow-lg border border-border"
                   />
                 ) : (
                   <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
@@ -213,7 +213,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
         {/* ── Tab content ── */}
         <div
           className="flex-1 overflow-y-auto px-4 py-4"
-          style={{ background: "linear-gradient(180deg, #0B1120 0%, #020617 100%)" }}
+          style={{ background: "linear-gradient(180deg, var(--color-bg-card) 0%, var(--color-bg-primary) 100%)" }}
         >
           {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
           {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
