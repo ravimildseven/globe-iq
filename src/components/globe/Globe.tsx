@@ -640,6 +640,47 @@ function CameraController({ zoomDelta, onZoomHandled }: {
   return null;
 }
 
+// ─── Camera fly-to animation when a country is selected ──────────────────────
+// Smoothly rotates the globe to face the selected country's centroid.
+// Uses easeInOutCubic over FLY_DURATION seconds. Preserves current zoom distance
+// (clamped to max 2.8 so we don't zoom out from a close position).
+const FLY_DURATION = 1.1; // seconds
+
+function CameraFlyTo({ selectedCountry }: { selectedCountry: CountryCentroid | null }) {
+  const { camera } = useThree();
+  const flyStart   = useRef<THREE.Vector3 | null>(null);
+  const flyEnd     = useRef<THREE.Vector3 | null>(null);
+  const elapsed    = useRef(0);
+  const prevCode   = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCountry) return;
+    // Only animate if the selected country actually changed
+    if (selectedCountry.code === prevCode.current) return;
+    prevCode.current = selectedCountry.code;
+
+    const [x, y, z] = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1);
+    const dir = new THREE.Vector3(x, y, z).normalize();
+    const dist = Math.min(camera.position.length(), 2.8);
+
+    flyStart.current = camera.position.clone();
+    flyEnd.current   = dir.multiplyScalar(dist);
+    elapsed.current  = 0;
+  }, [selectedCountry, camera]);
+
+  useFrame((_, delta) => {
+    if (!flyStart.current || !flyEnd.current) return;
+    elapsed.current += delta;
+    const t = Math.min(elapsed.current / FLY_DURATION, 1);
+    // easeInOutCubic
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    camera.position.lerpVectors(flyStart.current, flyEnd.current, eased);
+    if (t >= 1) { flyStart.current = null; flyEnd.current = null; }
+  });
+
+  return null;
+}
+
 // ─── Auto-rotate ──────────────────────────────────────────────────────────────
 function AutoRotate({ enabled }: { enabled: boolean }) {
   const ctrlRef = useRef<any>(null);
@@ -685,6 +726,7 @@ function SceneRoot({
         sunDir={sunDir.current}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
+      <CameraFlyTo selectedCountry={selectedCountry} />
       <AutoRotate enabled={!isInteracting && !selectedCountry} />
     </>
   );
