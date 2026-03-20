@@ -2,11 +2,13 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { CountryCentroid } from "@/lib/countries-geo";
 import InfoPanel from "@/components/panel/InfoPanel";
 import AmbientSound from "@/components/ui/AmbientSound";
 import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Globe2, Plus, Minus } from "lucide-react";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
@@ -91,6 +93,9 @@ function AmbientBlobs() {
 }
 
 export default function Home() {
+  const { resolvedTheme } = useTheme();
+  const globeTheme = resolvedTheme === "light" ? "light" : "dark";
+
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
   const [zoomDelta, setZoomDelta] = useState(0);
 
@@ -136,8 +141,9 @@ export default function Home() {
           <CountrySearch onSelect={handleCountrySelect} />
         </div>
 
-        {/* Right — sound */}
-        <div className="pointer-events-auto">
+        {/* Right — theme toggle + sound */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <ThemeToggle />
           <AmbientSound />
         </div>
       </header>
@@ -149,6 +155,7 @@ export default function Home() {
           onCountrySelect={handleCountrySelect}
           zoomDelta={zoomDelta}
           onZoomHandled={handleZoomHandled}
+          theme={globeTheme}
         />
       </div>
 

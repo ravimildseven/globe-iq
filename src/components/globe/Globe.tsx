@@ -10,11 +10,17 @@ import {
   type CountryShape,
 } from "@/lib/world-geo";
 
+// Globe texture URLs — from three-globe@2.34.1 unpkg CDN (same library source)
+const TEX_DAY_DARK  = "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg";
+const TEX_DAY_LIGHT = "https://unpkg.com/three-globe@2.34.1/example/img/earth-day.jpg";
+const TEX_NIGHT     = "https://unpkg.com/three-globe@2.34.1/example/img/earth-night.jpg";
+
 interface GlobeProps {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   zoomDelta: number;
   onZoomHandled: () => void;
+  theme: "dark" | "light";
 }
 
 // ─── Real-time subsolar point ─────────────────────────────────────────────────
@@ -390,17 +396,17 @@ function MajorCountryLabel({
         gap: entry.small ? 3 : 4,
         padding: entry.small ? "1px 5px" : "2px 7px",
         borderRadius: 10,
-        background: "rgba(4,10,24,0.55)",
+        background: "var(--globe-label-bg, rgba(4,10,24,0.55))",
         backdropFilter: "blur(6px)",
         WebkitBackdropFilter: "blur(6px)",
-        border: "1px solid rgba(180,210,255,0.10)",
+        border: "1px solid var(--globe-label-border, rgba(180,210,255,0.10))",
         transition: "opacity 200ms ease",
       }}>
         <span style={{ fontSize: entry.small ? 9 : 11, lineHeight: 1 }}>{flagEmoji(entry.code)}</span>
         <span style={{
           fontSize: entry.small ? 7 : 9,
           fontWeight: 600,
-          color: "rgba(200,220,255,0.75)",
+          color: "var(--globe-label-text, rgba(200,220,255,0.75))",
           letterSpacing: "0.04em",
           textTransform: "uppercase",
         }}>
@@ -474,13 +480,14 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
   sunDir: THREE.Vector3;
+  theme: "dark" | "light";
 }) {
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
   const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
@@ -492,24 +499,34 @@ function EarthGlobe({
     loadCountryShapes(countryCentroids).then(setShapes).catch(console.error);
   }, []);
 
-  // Textures
-  const earthTexture = useLoader(THREE.TextureLoader,
-    "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg");
-  const nightTexture = useLoader(THREE.TextureLoader,
-    "https://unpkg.com/three-globe@2.34.1/example/img/earth-night.jpg");
+  // Preload both day textures — switching is instant once cached
+  const texDayDark  = useLoader(THREE.TextureLoader, TEX_DAY_DARK);
+  const texDayLight = useLoader(THREE.TextureLoader, TEX_DAY_LIGHT);
+  const nightTexture = useLoader(THREE.TextureLoader, TEX_NIGHT);
+
+  // Select active day texture based on theme
+  const earthTexture = theme === "light" ? texDayLight : texDayDark;
 
   useMemo(() => {
-    earthTexture.colorSpace = THREE.SRGBColorSpace;
-    earthTexture.anisotropy = 16;
-    nightTexture.colorSpace = THREE.SRGBColorSpace;
-    nightTexture.anisotropy = 16;
-  }, [earthTexture, nightTexture]);
+    [texDayDark, texDayLight, nightTexture].forEach(t => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 16;
+    });
+  }, [texDayDark, texDayLight, nightTexture]);
 
   const uniforms = useMemo(() => ({
     dayTexture:   { value: earthTexture },
     nightTexture: { value: nightTexture },
     sunDirection: { value: sunDir.clone() },
   }), [earthTexture, nightTexture]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hot-swap texture when theme changes without remounting
+  useEffect(() => {
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.dayTexture.value = earthTexture;
+      shaderRef.current.needsUpdate = true;
+    }
+  }, [earthTexture]);
 
   useFrame(() => {
     shaderRef.current?.uniforms.sunDirection.value.copy(sunDir);
@@ -699,7 +716,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
   selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
-  zoomDelta, onZoomHandled, isInteracting,
+  zoomDelta, onZoomHandled, isInteracting, theme,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
@@ -708,6 +725,7 @@ function SceneRoot({
   zoomDelta: number;
   onZoomHandled: () => void;
   isInteracting: boolean;
+  theme: "dark" | "light";
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
@@ -724,6 +742,7 @@ function SceneRoot({
         onInteractionStart={onInteractionStart}
         onHoverCountry={onHoverCountry}
         sunDir={sunDir.current}
+        theme={theme}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
       <CameraFlyTo selectedCountry={selectedCountry} />
@@ -742,7 +761,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -777,6 +796,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             zoomDelta={zoomDelta}
             onZoomHandled={onZoomHandled}
             isInteracting={isInteracting}
+            theme={theme}
           />
         </Suspense>
       </Canvas>
@@ -797,8 +817,8 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             display: "flex",
             alignItems: "center",
             gap: 7,
-            background: "rgba(8,14,28,0.88)",
-            border: "1px solid rgba(255,255,255,0.13)",
+            background: "var(--globe-tooltip-bg, rgba(8,14,28,0.88))",
+            border: "1px solid var(--globe-tooltip-border, rgba(255,255,255,0.13))",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
             padding: "5px 11px 5px 9px",
