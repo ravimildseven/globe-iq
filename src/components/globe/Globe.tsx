@@ -836,7 +836,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             <span style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "#E8F0FF",
+              color: "var(--globe-tooltip-text, #E8F0FF)",
               letterSpacing: "0.01em",
               fontFamily: "var(--font-heading)",
             }}>

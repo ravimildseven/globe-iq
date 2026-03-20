@@ -112,14 +112,14 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
         aria-label="Search countries (⌘K)"
         className="flex items-center gap-2 glass rounded-full px-3.5 py-1.5
                    text-text-muted hover:text-text-primary transition-colors
-                   border border-white/8 hover:border-accent-amber/30
+                   border border-border hover:border-accent-amber/40
                    hover:shadow-[0_0_12px_rgba(245,158,11,0.15)] group"
       >
         <Search size={13} className="text-accent-amber/70 group-hover:text-accent-amber transition-colors" />
         <span className="text-[11px] tracking-wide hidden sm:block">Search countries</span>
         <kbd className="hidden sm:flex items-center gap-0.5 ml-1 px-1.5 py-0.5
-                        rounded-md bg-white/5 border border-white/10 text-[9px]
-                        font-mono text-text-muted/70 leading-none">
+                        rounded-md text-[9px] font-mono text-text-muted/70 leading-none"
+             style={{ background: "var(--search-kbd-bg)", border: "1px solid var(--search-kbd-border)" }}>
           ⌘K
         </kbd>
       </button>
@@ -145,16 +145,16 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
             <div
               className="rounded-2xl overflow-hidden"
               style={{
-                background: "rgba(4,10,24,0.96)",
+                background: "var(--search-bg)",
                 backdropFilter: "blur(24px)",
                 WebkitBackdropFilter: "blur(24px)",
-                border: "1px solid rgba(180,210,255,0.12)",
-                boxShadow: "0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.06)",
+                border: "1px solid var(--search-border)",
+                boxShadow: "var(--search-shadow)",
               }}
             >
               {/* Input row */}
               <div className="flex items-center gap-3 px-4 py-3.5"
-                style={{ borderBottom: "1px solid rgba(180,210,255,0.08)" }}>
+                style={{ borderBottom: "1px solid var(--search-divider)" }}>
                 <Search size={16} className="text-accent-amber/60 flex-shrink-0" />
                 <input
                   ref={inputRef}
@@ -178,9 +178,9 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                   </button>
                 )}
                 <kbd
-                  className="flex-shrink-0 px-1.5 py-0.5 rounded-md bg-white/5
-                             border border-white/10 text-[10px] font-mono
-                             text-text-muted/50 leading-none"
+                  className="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px]
+                             font-mono text-text-muted/50 leading-none"
+                  style={{ background: "var(--search-kbd-bg)", border: "1px solid var(--search-kbd-border)" }}
                 >
                   ESC
                 </kbd>
@@ -231,12 +231,15 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                         </div>
 
                         {/* Code badge */}
-                        <span className={`flex-shrink-0 text-[10px] font-mono px-1.5 py-0.5
-                                          rounded-md border transition-colors ${
-                          isActive
-                            ? "text-accent-amber/80 border-accent-amber/30 bg-accent-amber/5"
-                            : "text-text-muted/40 border-white/8"
-                        }`}>
+                        <span
+                          className={`flex-shrink-0 text-[10px] font-mono px-1.5 py-0.5
+                                      rounded-md border transition-colors ${
+                            isActive
+                              ? "text-accent-amber/80 border-accent-amber/30 bg-accent-amber/5"
+                              : "text-text-muted/50"
+                          }`}
+                          style={!isActive ? { borderColor: "var(--search-kbd-border)" } : undefined}
+                        >
                           {country.code}
                         </span>
                       </button>
@@ -248,15 +251,17 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
               {/* Footer hint */}
               <div
                 className="flex items-center justify-between px-4 py-2.5"
-                style={{ borderTop: "1px solid rgba(180,210,255,0.06)" }}
+                style={{ borderTop: "1px solid var(--search-divider)" }}
               >
-                <div className="flex items-center gap-3 text-[10px] text-text-muted/40">
+                <div className="flex items-center gap-3 text-[10px] text-text-muted/50">
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1 py-0.5 rounded bg-white/5 border border-white/8 font-mono text-[9px]">↑↓</kbd>
+                    <kbd className="px-1 py-0.5 rounded font-mono text-[9px]"
+                         style={{ background: "var(--search-kbd-bg)", border: "1px solid var(--search-kbd-border)" }}>↑↓</kbd>
                     navigate
                   </span>
                   <span className="flex items-center gap-1">
-                    <kbd className="px-1 py-0.5 rounded bg-white/5 border border-white/8 font-mono text-[9px]">↵</kbd>
+                    <kbd className="px-1 py-0.5 rounded font-mono text-[9px]"
+                         style={{ background: "var(--search-kbd-bg)", border: "1px solid var(--search-kbd-border)" }}>↵</kbd>
                     select
                   </span>
                 </div>
