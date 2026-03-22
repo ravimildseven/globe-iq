@@ -583,6 +583,13 @@ function EarthGlobe({
     shaderRef.current?.uniforms.sunDirection.value.copy(sunDir);
   });
 
+  // ── Track pointer-down position to suppress drag-as-click ──────────────────
+  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = useCallback((e: any) => {
+    pointerDownPos.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
   // ── Pointer move → find country by polygon ──────────────────────────────────
   const handlePointerMove = useCallback((e: any) => {
     if (!e.point) return;
@@ -609,6 +616,12 @@ function EarthGlobe({
   // ── Click → select country ──────────────────────────────────────────────────
   const handleClick = useCallback((e: any) => {
     if (!e.point) return;
+    // Suppress if the pointer drifted more than 5 px — it was a drag, not a tap
+    if (pointerDownPos.current) {
+      const dx = Math.abs(e.clientX - pointerDownPos.current.x);
+      const dy = Math.abs(e.clientY - pointerDownPos.current.y);
+      if (dx > 5 || dy > 5) return;
+    }
     onInteractionStart();
     const { lat, lng } = spherePointToLatLng(e.point);
 
@@ -637,6 +650,7 @@ function EarthGlobe({
       {/* Earth sphere — day/night shader */}
       <Sphere
         args={[1, 128, 128]}
+        onPointerDown={handlePointerDown}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onPointerMove={handlePointerMove}
