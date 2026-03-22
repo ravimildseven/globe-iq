@@ -1,131 +1,95 @@
 // Synthesized UI sound effects — Web Audio API
-// Enabled flag is toggled by AmbientSound component
+// Uses a shared, persistent AudioContext to avoid browser pool exhaustion.
+// All effects are gated by _soundEnabled (set by AmbientSound toggle).
 
 let _soundEnabled = false;
+let _ctx: AudioContext | null = null;
 
 export function setSoundEnabled(enabled: boolean) {
   _soundEnabled = enabled;
 }
 
-function makeCtx(): AudioContext | null {
-  try { return new AudioContext(); } catch { return null; }
+// Lazily create one shared AudioContext; resume it if suspended.
+// Returns null only if the browser has no Web Audio support.
+function ctx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    if (!_ctx || _ctx.state === "closed") {
+      _ctx = new AudioContext();
+    }
+    // Always attempt resume — required on iOS Safari after lock screen etc.
+    if (_ctx.state === "suspended") {
+      _ctx.resume().catch(() => {});
+    }
+    return _ctx;
+  } catch {
+    return null;
+  }
 }
 
+// Helper: schedule a simple tone.
+// attack / decay in seconds, peak gain, start frequency, optional end frequency.
+function tone(
+  freq: number,
+  peakGain: number,
+  attack: number,
+  decay: number,
+  freqEnd?: number,
+) {
+  const c = ctx();
+  if (!c) return;
+  const t = c.currentTime;
+
+  const osc  = c.createOscillator();
+  const gain = c.createGain();
+
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, t);
+  if (freqEnd !== undefined) {
+    osc.frequency.exponentialRampToValueAtTime(freqEnd, t + attack + decay);
+  }
+
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(peakGain, t + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+
+  osc.connect(gain).connect(c.destination);
+  osc.start(t);
+  osc.stop(t + attack + decay + 0.05);
+}
+
+// Select — rising two-tone chime (C5 → E5)
 export function playSelectSound(): void {
   if (!_soundEnabled) return;
-  const ctx = makeCtx();
-  if (!ctx) return;
-  ctx.resume().then(() => {
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.30);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.35);
-    osc.onended = () => ctx.close();
-  }).catch(() => {});
+  tone(523, 0.40, 0.015, 0.28, 659);
+  setTimeout(() => tone(659, 0.30, 0.010, 0.22), 60);
 }
 
+// Hover — very short soft blip, not too frequent
+let _lastHover = 0;
 export function playHoverSound(): void {
   if (!_soundEnabled) return;
-  const ctx = makeCtx();
-  if (!ctx) return;
-  ctx.resume().then(() => {
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 440;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
-    osc.onended = () => ctx.close();
-  }).catch(() => {});
+  const now = Date.now();
+  if (now - _lastHover < 120) return; // throttle: max ~8/s
+  _lastHover = now;
+  tone(600, 0.15, 0.008, 0.10);
 }
 
+// Deselect — descending soft glide
 export function playDeselectSound(): void {
   if (!_soundEnabled) return;
-  const ctx = makeCtx();
-  if (!ctx) return;
-  ctx.resume().then(() => {
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(660, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.20);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.28);
-    osc.onended = () => ctx.close();
-  }).catch(() => {});
+  tone(660, 0.35, 0.010, 0.30, 420);
 }
 
+// Layer toggle — two-note UI "thock"
 export function playLayerToggleSound(): void {
   if (!_soundEnabled) return;
-  const ctx = makeCtx();
-  if (!ctx) return;
-  ctx.resume().then(() => {
-    // Short noise burst
-    const bufSize = Math.floor(ctx.sampleRate * 0.10);
-    const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const data    = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise  = ctx.createBufferSource();
-    noise.buffer = buf;
-    const filt   = ctx.createBiquadFilter();
-    filt.type      = "bandpass";
-    filt.frequency.value = 800;
-    filt.Q.value   = 2;
-    const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.08, ctx.currentTime);
-    ng.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-    noise.connect(filt).connect(ng).connect(ctx.destination);
-    noise.start(ctx.currentTime);
-
-    // Ping tone
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 1000;
-    gain.gain.setValueAtTime(0.10, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.18);
-    osc.onended = () => ctx.close();
-  }).catch(() => {});
+  tone(800,  0.30, 0.008, 0.14);
+  setTimeout(() => tone(1050, 0.20, 0.005, 0.12), 70);
 }
 
+// Zoom — short rising or falling filtered whoosh
 export function playZoomSound(): void {
   if (!_soundEnabled) return;
-  const ctx = makeCtx();
-  if (!ctx) return;
-  ctx.resume().then(() => {
-    const bufSize = Math.floor(ctx.sampleRate * 0.20);
-    const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-    const data    = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise  = ctx.createBufferSource();
-    noise.buffer = buf;
-    const filt   = ctx.createBiquadFilter();
-    filt.type = "bandpass";
-    filt.frequency.setValueAtTime(200, ctx.currentTime);
-    filt.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.20);
-    filt.Q.value = 3;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.10, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
-    noise.connect(filt).connect(gain).connect(ctx.destination);
-    noise.start(ctx.currentTime);
-    noise.onended = () => ctx.close();
-  }).catch(() => {});
+  tone(300, 0.28, 0.012, 0.18, 600);
 }
