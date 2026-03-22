@@ -21,7 +21,8 @@ interface GlobeProps {
   zoomDelta: number;
   onZoomHandled: () => void;
   theme: "dark" | "light";
-  marketColors?: Record<string, { hex: string; opacity: number }>;
+  overlayColors?: Record<string, { hex: string; opacity: number }>;
+  nightLightsMode?: boolean;
 }
 
 // ─── Real-time subsolar point ─────────────────────────────────────────────────
@@ -78,17 +79,21 @@ const DAY_NIGHT_FRAG = /* glsl */ `
   uniform sampler2D dayTexture;
   uniform sampler2D nightTexture;
   uniform vec3      sunDirection;
+  uniform float     nightBoost;    /* 0 = normal, 1 = night-lights mode */
   varying vec2 vUv;
   varying vec3 vWorldNormal;
   void main() {
     vec4 dayColor   = texture2D(dayTexture,   vUv);
     vec4 nightColor = texture2D(nightTexture, vUv);
     float cosAngle  = dot(normalize(vWorldNormal), normalize(sunDirection));
-    float dayMix    = smoothstep(-0.12, 0.12, cosAngle);
+    /* In night-lights mode push the terminator into the day side */
+    float edge0     = mix(-0.12,  0.15, nightBoost);
+    float edge1     = mix( 0.12,  0.45, nightBoost);
+    float dayMix    = smoothstep(edge0, edge1, cosAngle);
     float diffuse   = max(cosAngle, 0.0);
     vec4  litDay    = dayColor * (0.07 + diffuse * 0.94);
     vec4  earthshine = dayColor * 0.09 * vec4(0.45, 0.55, 0.80, 1.0);
-    vec4  litNight   = nightColor * 1.65 + earthshine;
+    vec4  litNight   = nightColor * (1.65 + nightBoost * 2.5) + earthshine;
     float twilight   = (1.0 - smoothstep(0.0, 0.12, abs(cosAngle))) * 0.12;
     gl_FragColor = mix(litNight, litDay, dayMix) + vec4(1.0, 0.75, 0.3, 0.0) * twilight;
     gl_FragColor.a = 1.0;
@@ -485,7 +490,7 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme, marketColors,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme, overlayColors, nightLightsMode,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
@@ -493,7 +498,8 @@ function EarthGlobe({
   onHoverCountry: (c: CountryCentroid | null) => void;
   sunDir: THREE.Vector3;
   theme: "dark" | "light";
-  marketColors?: Record<string, { hex: string; opacity: number }>;
+  overlayColors?: Record<string, { hex: string; opacity: number }>;
+  nightLightsMode?: boolean;
 }) {
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
   const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
@@ -524,6 +530,7 @@ function EarthGlobe({
     dayTexture:   { value: earthTexture },
     nightTexture: { value: nightTexture },
     sunDirection: { value: sunDir.clone() },
+    nightBoost:   { value: 0.0 },
   }), [earthTexture, nightTexture]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hot-swap texture when theme changes without remounting
@@ -533,6 +540,13 @@ function EarthGlobe({
       shaderRef.current.needsUpdate = true;
     }
   }, [earthTexture]);
+
+  // Update night-lights boost
+  useEffect(() => {
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.nightBoost.value = nightLightsMode ? 1.0 : 0.0;
+    }
+  }, [nightLightsMode]);
 
   useFrame(() => {
     shaderRef.current?.uniforms.sunDirection.value.copy(sunDir);
@@ -606,14 +620,14 @@ function EarthGlobe({
       {/* Country border lines */}
       <CountryBordersLayer shapes={shapes} />
 
-      {/* ── Market heat map — green/red fills for countries with index data ── */}
-      {marketColors && shapes.map(shape => {
-        const mc = marketColors[shape.code];
-        if (!mc) return null;
+      {/* ── Overlay layer fills (market / conflicts / population / timezones) ── */}
+      {overlayColors && shapes.map(shape => {
+        const oc = overlayColors[shape.code];
+        if (!oc) return null;
         // Skip selected country (amber overlay takes priority)
         if (selectedShape?.code === shape.code) return null;
         return (
-          <CountryFill key={`mkt-${shape.code}`} shape={shape} color={mc.hex} opacity={mc.opacity} />
+          <CountryFill key={`ov-${shape.code}`} shape={shape} color={oc.hex} opacity={oc.opacity} />
         );
       })}
 
@@ -733,7 +747,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
   selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
-  zoomDelta, onZoomHandled, isInteracting, theme, marketColors,
+  zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
@@ -743,7 +757,8 @@ function SceneRoot({
   onZoomHandled: () => void;
   isInteracting: boolean;
   theme: "dark" | "light";
-  marketColors?: Record<string, { hex: string; opacity: number }>;
+  overlayColors?: Record<string, { hex: string; opacity: number }>;
+  nightLightsMode?: boolean;
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
@@ -761,7 +776,8 @@ function SceneRoot({
         onHoverCountry={onHoverCountry}
         sunDir={sunDir.current}
         theme={theme}
-        marketColors={marketColors}
+        overlayColors={overlayColors}
+        nightLightsMode={nightLightsMode}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
       <CameraFlyTo selectedCountry={selectedCountry} />
@@ -780,7 +796,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, marketColors }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -816,7 +832,8 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             onZoomHandled={onZoomHandled}
             isInteracting={isInteracting}
             theme={theme}
-            marketColors={marketColors}
+            overlayColors={overlayColors}
+            nightLightsMode={nightLightsMode}
           />
         </Suspense>
       </Canvas>

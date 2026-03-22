@@ -3,14 +3,18 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import { CountryCentroid } from "@/lib/countries-geo";
+import { CountryCentroid, countryCentroids } from "@/lib/countries-geo";
 import InfoPanel from "@/components/panel/InfoPanel";
 import AmbientSound from "@/components/ui/AmbientSound";
 import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
 import { Globe2, Plus, Minus } from "lucide-react";
 import { MarketData, marketHex, marketOpacity } from "@/lib/marketIndices";
+import { conflictsDatabase } from "@/lib/conflicts-data";
+import { getCountryTimezone } from "@/lib/country-timezones";
+import { POPULATION_DENSITY, densityColor } from "@/lib/population-data";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
   ssr: false,
@@ -93,6 +97,21 @@ function AmbientBlobs() {
   );
 }
 
+/* ── Helpers for overlay colours ─────────────────────────── */
+function parseUtcOffset(utcLabel: string): number {
+  const m = utcLabel.match(/UTC([+-])(\d+)(?::(\d+))?/);
+  if (!m) return 0;
+  const sign = m[1] === "+" ? 1 : -1;
+  return sign * (parseInt(m[2]) + parseInt(m[3] || "0") / 60);
+}
+
+function timezoneHex(offset: number): string {
+  // Map −12 → +14 to hue 220° → 0° (blue → green → yellow → red)
+  const t = Math.max(0, Math.min(1, (offset + 12) / 26));
+  const hue = Math.round(220 - t * 220);
+  return `hsl(${hue}, 80%, 55%)`;
+}
+
 export default function Home() {
   const { resolvedTheme } = useTheme();
   const globeTheme = resolvedTheme === "light" ? "light" : "dark";
@@ -100,6 +119,7 @@ export default function Home() {
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [marketData, setMarketData] = useState<MarketData>({});
+  const [activeLayer, setActiveLayer] = useState<LayerId | null>(null);
 
   // Fetch market data on mount, refresh every 5 minutes
   useEffect(() => {
@@ -113,7 +133,7 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  // Derive per-country fill colours for the globe heat map
+  // Market overlay
   const marketColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
     const out: Record<string, { hex: string; opacity: number }> = {};
     for (const [code, q] of Object.entries(marketData)) {
@@ -121,6 +141,63 @@ export default function Home() {
     }
     return out;
   }, [marketData]);
+
+  // Conflict overlay — worst conflict per country
+  const conflictColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, conflicts] of Object.entries(conflictsDatabase)) {
+      const worst = conflicts.reduce((best, c) => {
+        const score = (c.status === "active" ? 4 : c.status === "ceasefire" ? 2 : 1)
+                    + (c.severity === "high" ? 3 : c.severity === "medium" ? 1 : 0);
+        const bScore = (best.status === "active" ? 4 : best.status === "ceasefire" ? 2 : 1)
+                     + (best.severity === "high" ? 3 : best.severity === "medium" ? 1 : 0);
+        return score > bScore ? c : best;
+      });
+      if (worst.status === "active" && worst.severity === "high") {
+        out[code] = { hex: "#EF4444", opacity: 0.42 };
+      } else if (worst.status === "active") {
+        out[code] = { hex: "#F97316", opacity: 0.38 };
+      } else if (worst.status === "ceasefire") {
+        out[code] = { hex: "#EAB308", opacity: 0.32 };
+      } else {
+        out[code] = { hex: "#94A3B8", opacity: 0.25 };
+      }
+    }
+    return out;
+  }, []);
+
+  // Population density overlay
+  const populationColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, density] of Object.entries(POPULATION_DENSITY)) {
+      out[code] = densityColor(density);
+    }
+    return out;
+  }, []);
+
+  // Timezone overlay — computed once from static data
+  const timezoneColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const c of countryCentroids) {
+      const tz = getCountryTimezone(c.code);
+      if (tz) {
+        const offset = parseUtcOffset(tz.utcLabel);
+        out[c.code] = { hex: timezoneHex(offset), opacity: 0.45 };
+      }
+    }
+    return out;
+  }, []);
+
+  // Pick overlay colours based on active layer
+  const overlayColors = useMemo(() => {
+    if (activeLayer === "market")     return marketColors;
+    if (activeLayer === "conflicts")  return conflictColors;
+    if (activeLayer === "population") return populationColors;
+    if (activeLayer === "timezones")  return timezoneColors;
+    return undefined;
+  }, [activeLayer, marketColors, conflictColors, populationColors, timezoneColors]);
+
+  const nightLightsMode = activeLayer === "nightlights";
 
   const handleCountrySelect = useCallback((country: CountryCentroid) => {
     setSelectedCountry(country);
@@ -179,11 +256,12 @@ export default function Home() {
           zoomDelta={zoomDelta}
           onZoomHandled={handleZoomHandled}
           theme={globeTheme}
-          marketColors={marketColors}
+          overlayColors={overlayColors}
+          nightLightsMode={nightLightsMode}
         />
       </div>
 
-      {/* ── Zoom controls (left sidebar pill) ── */}
+      {/* ── Left sidebar: zoom controls + layers button ── */}
       <div className="absolute left-5 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1.5 pointer-events-auto">
         <button
           onClick={() => setZoomDelta(1)}
@@ -200,6 +278,12 @@ export default function Home() {
         >
           <Minus size={16} />
         </button>
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-border mx-auto" />
+
+        {/* Layers toggle */}
+        <LayersPanel activeLayer={activeLayer} onLayerChange={setActiveLayer} />
       </div>
 
       {/* ── Country info panel ── */}
@@ -219,7 +303,9 @@ export default function Home() {
           <span className="text-[11px] text-text-muted">
             {selectedCountry
               ? `Viewing · ${selectedCountry.name}`
-              : "Live · Drag to rotate · Click to explore"}
+              : activeLayer
+                ? `Layer · ${activeLayer.charAt(0).toUpperCase() + activeLayer.slice(1)}`
+                : "Live · Drag to rotate · Click to explore"}
           </span>
         </div>
 
