@@ -291,33 +291,38 @@ export default function Home() {
         {/* Logo */}
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(245,158,11,0.25), 0 0 14px rgba(245,158,11,0.18)" }}>
+            <div className="w-10 h-10 rounded-xl overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(59,130,246,0.35), 0 0 16px rgba(59,130,246,0.20)" }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
                 <defs>
-                  <radialGradient id="lBg" cx="38%" cy="32%" r="65%">
-                    <stop offset="0%" stopColor="#163352"/>
-                    <stop offset="100%" stopColor="#060e18"/>
+                  <radialGradient id="lG" cx="38%" cy="32%" r="68%">
+                    <stop offset="0%"   stopColor="#2563EB"/>
+                    <stop offset="55%"  stopColor="#1E3A8A"/>
+                    <stop offset="100%" stopColor="#0A1628"/>
                   </radialGradient>
-                  <filter id="lGlow" x="-40%" y="-40%" width="180%" height="180%">
-                    <feGaussianBlur stdDeviation="1.2" result="b"/>
+                  <filter id="lF" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="0.9" result="b"/>
                     <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
                   </filter>
-                  <filter id="lDot" x="-120%" y="-120%" width="340%" height="340%">
-                    <feGaussianBlur stdDeviation="1.5" result="b"/>
-                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                  <clipPath id="lc"><circle cx="20" cy="20" r="13"/></clipPath>
+                  <clipPath id="lC"><circle cx="18" cy="21" r="11"/></clipPath>
                 </defs>
-                <rect width="40" height="40" rx="9" fill="#060e18"/>
-                <circle cx="20" cy="20" r="13" fill="url(#lBg)"/>
-                <ellipse cx="15" cy="14" rx="5" ry="3" fill="white" opacity="0.07" transform="rotate(-25 15 14)"/>
-                <g clipPath="url(#lc)" fill="none" stroke="#60A5FA" strokeWidth="0.5" opacity="0.18">
-                  <ellipse cx="20" cy="20" rx="13" ry="4.5"/>
-                  <ellipse cx="20" cy="14" rx="9"  ry="3"/>
+                <rect width="40" height="40" rx="9" fill="#070F1C"/>
+                <circle cx="18" cy="21" r="11" fill="url(#lG)"/>
+                <g clipPath="url(#lC)" fill="none" opacity="0.55">
+                  <ellipse cx="16" cy="17" rx="4.5" ry="3" fill="#16A34A"/>
+                  <ellipse cx="22" cy="18" rx="3.5" ry="2.5" fill="#15803D"/>
+                  <ellipse cx="13" cy="22" rx="3" ry="2" fill="#166534"/>
+                  <ellipse cx="21" cy="24" rx="4" ry="2" fill="#14532D"/>
                 </g>
-                <ellipse cx="20" cy="20" rx="13" ry="4.5" fill="none" stroke="#F59E0B" strokeWidth="1.6" filter="url(#lGlow)"/>
-                <circle cx="20" cy="20" r="13" fill="none" stroke="#F59E0B" strokeWidth="1.4" filter="url(#lGlow)"/>
-                <circle cx="24" cy="14" r="1.8" fill="#F59E0B" filter="url(#lDot)"/>
+                <ellipse cx="16" cy="15" rx="4" ry="2.5" fill="white" opacity="0.08" transform="rotate(-25 16 15)" clipPath="url(#lC)"/>
+                <circle cx="18" cy="21" r="11" fill="none" stroke="#93C5FD" strokeWidth="0.5" opacity="0.4"/>
+                <ellipse cx="18" cy="21" rx="14" ry="4.8" fill="none" stroke="#93C5FD" strokeWidth="1.3" opacity="0.75" transform="rotate(-22 18 21)" filter="url(#lF)"/>
+                <circle cx="21" cy="16" r="1.1" fill="white" opacity="0.95" filter="url(#lF)"/>
+                <line x1="22" y1="15" x2="29" y2="9"  stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
+                <circle cx="30.5" cy="7.5" r="2"   fill="#F59E0B" filter="url(#lF)"/>
+                <line x1="22" y1="16" x2="33" y2="15" stroke="#22D3EE" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
+                <circle cx="34.5" cy="14.5" r="2" fill="#22D3EE" filter="url(#lF)"/>
+                <line x1="22" y1="17" x2="29" y2="23" stroke="#4ADE80" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
+                <circle cx="30.5" cy="24.5" r="2" fill="#4ADE80" filter="url(#lF)"/>
               </svg>
             </div>
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green border-2 border-bg-primary" />
@@ -380,6 +385,23 @@ export default function Home() {
         {/* Layers toggle */}
         <LayersPanel activeLayer={activeLayer} onLayerChange={(id) => { playLayerToggleSound(); setActiveLayer(id); }} />
       </div>
+
+      {/* ── Mobile beacon dismiss pill (Escape unavailable on touch) ── */}
+      {flyToTarget && !selectedCountry && (
+        <div className="sm:hidden absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-auto animate-in fade-in duration-200">
+          <button
+            onClick={() => setFlyToTarget(null)}
+            className="flex items-center gap-2 glass rounded-full pl-3 pr-2 py-1.5
+                       border border-border text-xs text-text-muted
+                       hover:text-text-primary transition-colors"
+          >
+            <span>{flagEmoji(flyToTarget.code)}</span>
+            <span className="font-medium text-text-primary">{flyToTarget.name}</span>
+            <span className="text-text-muted/50">· tap globe to explore</span>
+            <span className="ml-1 w-5 h-5 flex items-center justify-center rounded-full bg-bg-elevated text-text-muted">✕</span>
+          </button>
+        </div>
+      )}
 
       {/* ── Country info panel ── */}
       {selectedCountry && (
