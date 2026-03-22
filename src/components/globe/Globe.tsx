@@ -303,30 +303,33 @@ function flagEmoji(code: string) {
 // ─── All bordered countries get a name label — horizon-fade limits density ─────
 // The globe shows ~40-50 countries at any orientation; dot-product fade hides
 // labels near the limb, so crowding is naturally managed by the 3D geometry.
-const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number; small?: boolean }[] = [
-  // ── Largest nations (clear label space) ─────────────────────────────────────
-  { code: "RU", name: "Russia",         lat:  61.52, lng:  105.32 },
-  { code: "CA", name: "Canada",         lat:  56.13, lng: -106.35 },
-  { code: "US", name: "United States",  lat:  39.50, lng:  -98.35 },
-  { code: "CN", name: "China",          lat:  36.00, lng:  103.00 },
-  { code: "BR", name: "Brazil",         lat: -10.00, lng:  -53.00 },
-  { code: "AU", name: "Australia",      lat: -25.27, lng:  133.78 },
-  { code: "IN", name: "India",          lat:  22.00, lng:   79.00 },
-  { code: "AR", name: "Argentina",      lat: -35.00, lng:  -65.00 },
+// tier 1 = always visible (largest/most recognised nations, ~17)
+// tier 2 = visible at mid zoom (<3.5) — default for non-small entries
+// tier 3 = visible only when close (<2.5) — flagged via small:true
+const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number; small?: boolean; tier?: 1 }[] = [
+  // ── Tier-1: always visible regardless of zoom ────────────────────────────────
+  { code: "RU", name: "Russia",         lat:  61.52, lng:  105.32, tier: 1 },
+  { code: "CA", name: "Canada",         lat:  56.13, lng: -106.35, tier: 1 },
+  { code: "US", name: "United States",  lat:  39.50, lng:  -98.35, tier: 1 },
+  { code: "CN", name: "China",          lat:  36.00, lng:  103.00, tier: 1 },
+  { code: "BR", name: "Brazil",         lat: -10.00, lng:  -53.00, tier: 1 },
+  { code: "AU", name: "Australia",      lat: -25.27, lng:  133.78, tier: 1 },
+  { code: "IN", name: "India",          lat:  22.00, lng:   79.00, tier: 1 },
+  { code: "AR", name: "Argentina",      lat: -35.00, lng:  -65.00, tier: 1 },
   { code: "KZ", name: "Kazakhstan",     lat:  48.02, lng:   66.92 },
   { code: "DZ", name: "Algeria",        lat:  28.03, lng:    3.00 },
   { code: "CD", name: "DR Congo",       lat:  -4.04, lng:   21.76 },
-  { code: "SA", name: "Saudi Arabia",   lat:  25.00, lng:   45.00 },
-  { code: "MX", name: "Mexico",         lat:  23.63, lng: -102.55 },
-  { code: "ID", name: "Indonesia",      lat:  -0.79, lng:  113.92 },
+  { code: "SA", name: "Saudi Arabia",   lat:  25.00, lng:   45.00, tier: 1 },
+  { code: "MX", name: "Mexico",         lat:  23.63, lng: -102.55, tier: 1 },
+  { code: "ID", name: "Indonesia",      lat:  -0.79, lng:  113.92, tier: 1 },
   { code: "SD", name: "Sudan",          lat:  12.86, lng:   30.22 },
   { code: "LY", name: "Libya",          lat:  26.34, lng:   17.23 },
   { code: "IR", name: "Iran",           lat:  32.43, lng:   53.69 },
   { code: "MN", name: "Mongolia",       lat:  46.86, lng:  103.85 },
   // ── Large nations ───────────────────────────────────────────────────────────
-  { code: "NG", name: "Nigeria",        lat:   9.08, lng:    8.68 },
+  { code: "NG", name: "Nigeria",        lat:   9.08, lng:    8.68, tier: 1 },
   { code: "ET", name: "Ethiopia",       lat:   9.15, lng:   40.49 },
-  { code: "ZA", name: "South Africa",   lat: -29.00, lng:   25.00 },
+  { code: "ZA", name: "South Africa",   lat: -29.00, lng:   25.00, tier: 1 },
   { code: "EG", name: "Egypt",          lat:  26.82, lng:   30.80 },
   { code: "VE", name: "Venezuela",      lat:   6.42, lng:  -66.59 },
   { code: "PK", name: "Pakistan",       lat:  30.38, lng:   69.35 },
@@ -353,14 +356,14 @@ const LABELED_COUNTRIES: { code: string; name: string; lat: number; lng: number;
   { code: "FI", name: "Finland",        lat:  61.92, lng:   25.75 },
   { code: "BY", name: "Belarus",        lat:  53.71, lng:   27.95 },
   { code: "ZW", name: "Zimbabwe",       lat: -19.02, lng:   29.15 },
-  { code: "DE", name: "Germany",        lat:  51.17, lng:   10.45 },
-  { code: "FR", name: "France",         lat:  46.23, lng:    2.21 },
-  { code: "GB", name: "UK",             lat:  55.38, lng:   -3.44 },
+  { code: "DE", name: "Germany",        lat:  51.17, lng:   10.45, tier: 1 },
+  { code: "FR", name: "France",         lat:  46.23, lng:    2.21, tier: 1 },
+  { code: "GB", name: "UK",             lat:  55.38, lng:   -3.44, tier: 1 },
   { code: "ES", name: "Spain",          lat:  40.46, lng:   -3.75 },
   { code: "PL", name: "Poland",         lat:  51.92, lng:   19.15 },
   { code: "MY", name: "Malaysia",       lat:   4.21, lng:  101.98 },
   { code: "VN", name: "Vietnam",        lat:  14.06, lng:  108.28 },
-  { code: "JP", name: "Japan",          lat:  36.20, lng:  138.25 },
+  { code: "JP", name: "Japan",          lat:  36.20, lng:  138.25, tier: 1 },
   { code: "TH", name: "Thailand",       lat:  15.87, lng:  100.99 },
   { code: "PH", name: "Philippines",    lat:  12.88, lng:  121.77 },
   { code: "YE", name: "Yemen",          lat:  15.55, lng:   48.52 },
@@ -420,14 +423,20 @@ function MajorCountryLabel({
   const { camera } = useThree();
   const divRef = useRef<HTMLDivElement>(null);
 
-  const threshold  = entry.small ? 0.50 : 0.38;
+  // Tighter facing threshold: start at 0.45 (small: 0.55), fully opaque at +0.10
+  const threshold  = entry.small ? 0.55 : 0.45;
   const maxOpacity = entry.small ? 0.55 : 0.65;
 
   useFrame(() => {
     if (!divRef.current) return;
+    const camDist = camera.position.length();
+    // Zoom-based tier gate: tier-1 always, small only when close, others at mid zoom
+    const tierOk = entry.tier === 1 ? true
+                 : entry.small      ? camDist < 2.5
+                 :                    camDist < 3.5;
     const d = posVec.dot(camera.position.clone().normalize());
-    const hidden  = d < threshold || hideCodes.has(entry.code);
-    const opacity = hidden ? 0 : Math.min(1, (d - threshold) / 0.17) * maxOpacity;
+    const hidden  = !tierOk || d < threshold || hideCodes.has(entry.code);
+    const opacity = hidden ? 0 : Math.min(1, (d - threshold) / 0.10) * maxOpacity;
     divRef.current.style.opacity = String(opacity);
   });
 
