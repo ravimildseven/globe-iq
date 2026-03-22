@@ -1,56 +1,51 @@
-// Synthesized UI sound effects — Web Audio API
-// Uses a shared, persistent AudioContext to avoid browser pool exhaustion.
-// All effects are gated by _soundEnabled (set by AmbientSound toggle).
+// UI sound effects — Web Audio API
+//
+// Two-track architecture:
+//   • When ambient is ON:  AmbientSound exports its confirmed-running AudioContext
+//     via setSharedAudioCtx().  All effects reuse it — no suspended-context risk.
+//   • When ambient is OFF: each effect creates a fresh AudioContext synchronously
+//     (effects are always called from click handlers = trusted gesture) then
+//     calls resume() → plays inside .then().
+//
+// _soundEnabled is only true while ambient is playing, so effects are a bonus
+// layer — they won't fire unless the user has already unblocked audio.
 
-let _soundEnabled = false;
-let _ctx: AudioContext | null = null;
+let _soundEnabled   = false;
+let _sharedCtx: AudioContext | null = null;
 
-export function setSoundEnabled(enabled: boolean) {
-  _soundEnabled = enabled;
+export function setSoundEnabled(enabled: boolean)           { _soundEnabled = enabled; }
+export function setSharedAudioCtx(ctx: AudioContext | null) { _sharedCtx = ctx; }
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+function getOrMakeCtx(): AudioContext | null {
+  // Prefer the shared, already-running context from AmbientSound.
+  if (_sharedCtx && _sharedCtx.state !== "closed") return _sharedCtx;
+  // Fall back: create a fresh one (only valid when we're inside a click handler).
+  try { return new AudioContext(); } catch { return null; }
 }
 
-// Lazily create one shared AudioContext; resume it if suspended.
-// Returns null only if the browser has no Web Audio support.
-function ctx(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  try {
-    if (!_ctx || _ctx.state === "closed") {
-      _ctx = new AudioContext();
-    }
-    // Always attempt resume — required on iOS Safari after lock screen etc.
-    if (_ctx.state === "suspended") {
-      _ctx.resume().catch(() => {});
-    }
-    return _ctx;
-  } catch {
-    return null;
-  }
-}
-
-// Helper: schedule a simple tone.
-// attack / decay in seconds, peak gain, start frequency, optional end frequency.
-function tone(
-  freq: number,
-  peakGain: number,
+function scheduleTone(
+  c:      AudioContext,
+  freq:   number,
+  peak:   number,
   attack: number,
-  decay: number,
-  freqEnd?: number,
-) {
-  const c = ctx();
-  if (!c) return;
-  const t = c.currentTime;
-
+  decay:  number,
+  endFreq?: number,
+): void {
+  const t    = c.currentTime;
   const osc  = c.createOscillator();
   const gain = c.createGain();
 
   osc.type = "sine";
   osc.frequency.setValueAtTime(freq, t);
-  if (freqEnd !== undefined) {
-    osc.frequency.exponentialRampToValueAtTime(freqEnd, t + attack + decay);
+  if (endFreq !== undefined) {
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + attack + decay);
   }
 
+  // Start from tiny non-zero value — exponentialRamp to 0 throws RangeError
   gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.linearRampToValueAtTime(peakGain, t + attack);
+  gain.gain.linearRampToValueAtTime(peak, t + attack);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
 
   osc.connect(gain).connect(c.destination);
@@ -58,38 +53,55 @@ function tone(
   osc.stop(t + attack + decay + 0.05);
 }
 
-// Select — rising two-tone chime (C5 → E5)
-export function playSelectSound(): void {
+// Run `fn` on a guaranteed-running AudioContext.
+// If the context is already running (shared ctx), call fn synchronously.
+// If it's a fresh suspended context, resume() then fn inside .then().
+function withCtx(fn: (c: AudioContext) => void): void {
   if (!_soundEnabled) return;
-  tone(523, 0.40, 0.015, 0.28, 659);
-  setTimeout(() => tone(659, 0.30, 0.010, 0.22), 60);
+  const c = getOrMakeCtx();
+  if (!c) return;
+
+  if (c.state === "running") {
+    fn(c);
+  } else {
+    // fresh context from a click handler — resume synchronously, nodes in .then()
+    c.resume().then(() => fn(c));
+  }
 }
 
-// Hover — very short soft blip, not too frequent
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+// Rising two-tone chime: A5 → E6
+export function playSelectSound(): void {
+  withCtx(c => {
+    scheduleTone(c, 880, 0.50, 0.012, 0.28, 1320);
+    setTimeout(() => scheduleTone(c, 1320, 0.38, 0.010, 0.22), 65);
+  });
+}
+
+// Soft blip on hover — throttled to avoid audio spam
 let _lastHover = 0;
 export function playHoverSound(): void {
-  if (!_soundEnabled) return;
   const now = Date.now();
-  if (now - _lastHover < 120) return; // throttle: max ~8/s
+  if (now - _lastHover < 130) return;
   _lastHover = now;
-  tone(600, 0.15, 0.008, 0.10);
+  withCtx(c => scheduleTone(c, 800, 0.22, 0.006, 0.09));
 }
 
-// Deselect — descending soft glide
+// Descending glide on panel close
 export function playDeselectSound(): void {
-  if (!_soundEnabled) return;
-  tone(660, 0.35, 0.010, 0.30, 420);
+  withCtx(c => scheduleTone(c, 800, 0.46, 0.010, 0.28, 600));
 }
 
-// Layer toggle — two-note UI "thock"
+// Double-note "thock" for layer switches
 export function playLayerToggleSound(): void {
-  if (!_soundEnabled) return;
-  tone(800,  0.30, 0.008, 0.14);
-  setTimeout(() => tone(1050, 0.20, 0.005, 0.12), 70);
+  withCtx(c => {
+    scheduleTone(c, 880,  0.38, 0.008, 0.14);
+    setTimeout(() => scheduleTone(c, 1100, 0.26, 0.005, 0.12), 70);
+  });
 }
 
-// Zoom — short rising or falling filtered whoosh
+// Short filtered rise on zoom
 export function playZoomSound(): void {
-  if (!_soundEnabled) return;
-  tone(300, 0.28, 0.012, 0.18, 600);
+  withCtx(c => scheduleTone(c, 400, 0.36, 0.010, 0.16, 800));
 }

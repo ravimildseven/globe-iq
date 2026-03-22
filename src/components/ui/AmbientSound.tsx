@@ -2,81 +2,57 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Volume2, VolumeX } from "lucide-react";
-import { setSoundEnabled } from "@/lib/sound-effects";
+import { setSoundEnabled, setSharedAudioCtx } from "@/lib/sound-effects";
 
-// Pure Web Audio drone — no external URLs, no CORS issues
-// Architecture: oscillators → oscMix → breathGain → masterGain → destination
-//               lfo → lfoScale → breathGain.gain  (breathing effect)
+// ─── Pure-oscillator drone ────────────────────────────────────────────────────
+// Two detuned sines (60Hz + 63.3Hz) create a natural beating wave.
+// Separate `breath` GainNode carries the LFO so the fade ramp on `master` is
+// never contested by an automation source.
 function buildDrone(ctx: AudioContext): { master: GainNode; stop: () => void } {
   const master = ctx.createGain();
   master.gain.value = 0;
   master.connect(ctx.destination);
 
-  // Separate breath layer so LFO doesn't fight the fade ramp on master
+  // Breath layer — LFO modulates this, not master
   const breath = ctx.createGain();
-  breath.gain.value = 1;
+  breath.gain.value = 1.0;
   breath.connect(master);
 
-  const nodes: (OscillatorNode)[] = [];
+  const oscs: OscillatorNode[] = [];
 
-  // Deep beating drone — two slightly detuned sines produce natural waver
-  const osc1 = ctx.createOscillator();
-  osc1.type = "sine";
-  osc1.frequency.value = 60;
-  const g1 = ctx.createGain();
-  g1.gain.value = 0.45;
-  osc1.connect(g1).connect(breath);
-  osc1.start();
-  nodes.push(osc1);
+  const add = (freq: number, vol: number) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g).connect(breath);
+    o.start();
+    oscs.push(o);
+  };
 
-  const osc2 = ctx.createOscillator();
-  osc2.type = "sine";
-  osc2.frequency.value = 63.3; // +3.3Hz creates ~0.3s beating cycle
-  const g2 = ctx.createGain();
-  g2.gain.value = 0.35;
-  osc2.connect(g2).connect(breath);
-  osc2.start();
-  nodes.push(osc2);
+  add(200,   0.55);   // fundamental — audible on phone speakers
+  add(204,   0.44);   // slight detune — creates beating
+  add(400,   0.14);   // octave warmth
+  add(600,   0.05);   // high shimmer
 
-  // Octave warmth layer
-  const osc3 = ctx.createOscillator();
-  osc3.type = "sine";
-  osc3.frequency.value = 120;
-  const g3 = ctx.createGain();
-  g3.gain.value = 0.12;
-  osc3.connect(g3).connect(breath);
-  osc3.start();
-  nodes.push(osc3);
-
-  // High shimmer — very subtle
-  const osc4 = ctx.createOscillator();
-  osc4.type = "sine";
-  osc4.frequency.value = 243; // B3-ish
-  const g4 = ctx.createGain();
-  g4.gain.value = 0.04;
-  const shimFilter = ctx.createBiquadFilter();
-  shimFilter.type = "lowpass";
-  shimFilter.frequency.value = 500;
-  osc4.connect(shimFilter).connect(g4).connect(breath);
-  osc4.start();
-  nodes.push(osc4);
-
-  // Slow LFO on breath.gain — 0.05Hz = 20s breath cycle, ±0.18 swing
-  const lfo = ctx.createOscillator();
+  // LFO breathing — 0.05 Hz = 20-second cycle, ±0.18 swing
+  const lfo      = ctx.createOscillator();
+  const lfoScale = ctx.createGain();
   lfo.type = "sine";
   lfo.frequency.value = 0.05;
-  const lfoScale = ctx.createGain();
   lfoScale.gain.value = 0.18;
   lfo.connect(lfoScale).connect(breath.gain);
   lfo.start();
-  nodes.push(lfo);
+  oscs.push(lfo);
 
   return {
     master,
-    stop: () => nodes.forEach(n => { try { n.stop(); } catch { /* already stopped */ } }),
+    stop: () => oscs.forEach(o => { try { o.stop(); } catch { /* already stopped */ } }),
   };
 }
 
+// ─── Component ───────────────────────────────────────────────────────────────
 export default function AmbientSound() {
   const [isPlaying, setIsPlaying] = useState(false);
   const ctxRef   = useRef<AudioContext | null>(null);
@@ -84,7 +60,7 @@ export default function AmbientSound() {
 
   const toggle = useCallback(() => {
     if (isPlaying) {
-      // Fade out then tear down
+      // ── Fade out then tear down ──────────────────────────────────────────
       const ctx   = ctxRef.current;
       const drone = droneRef.current;
       if (ctx && drone) {
@@ -95,37 +71,37 @@ export default function AmbientSound() {
         g.linearRampToValueAtTime(0, t + 1.5);
         setTimeout(() => {
           try { drone.stop(); } catch { /* ok */ }
-          try { ctx.close(); }  catch { /* ok */ }
+          try { ctx.close();  } catch { /* ok */ }
           droneRef.current = null;
           ctxRef.current   = null;
+          setSharedAudioCtx(null);
         }, 1700);
       }
       setSoundEnabled(false);
       setIsPlaying(false);
+
     } else {
-      // AudioContext MUST be created inside the click handler for iOS Safari
+      // ── MUST be synchronous in the click handler ─────────────────────────
+      // new AudioContext() here — inside onClick — so the browser grants audio.
       const ctx = new AudioContext();
       ctxRef.current = ctx;
 
-      const start = () => {
+      // resume() is also called synchronously; nodes are built inside .then()
+      // so they're created on a live, running context timeline.
+      ctx.resume().then(() => {
         const drone = buildDrone(ctx);
         droneRef.current = drone;
-        // Schedule fade-in from current time (ctx is now running)
+
         const g = drone.master.gain;
-        const t = ctx.currentTime;
-        g.cancelScheduledValues(t);
+        const t = ctx.currentTime;           // ctx is running now
         g.setValueAtTime(0, t);
         g.linearRampToValueAtTime(0.60, t + 3.0);
-      };
 
-      if (ctx.state === "suspended") {
-        ctx.resume().then(start).catch(() => {
-          // Fallback: try starting without explicit resume (some browsers auto-resume)
-          start();
-        });
-      } else {
-        start();
-      }
+        // Share the confirmed-running context so click effects can piggyback
+        setSharedAudioCtx(ctx);
+      });
+      // (no .catch — if resume fails the button just won't make sound; state
+      //  correctly reflects user intent so they can retry)
 
       setSoundEnabled(true);
       setIsPlaying(true);
