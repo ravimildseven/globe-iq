@@ -264,12 +264,14 @@ export default function Home() {
         {/* Logo */}
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="relative flex-shrink-0">
-            <img
-              src="/logo-icon.svg"
-              alt="GlobeIQ"
-              className="w-10 h-10 rounded-xl"
-              draggable={false}
-            />
+            <div className="w-10 h-10 rounded-xl glow-amber overflow-hidden">
+              <img
+                src="/logo-icon.svg"
+                alt="GlobeIQ"
+                className="w-full h-full"
+                draggable={false}
+              />
+            </div>
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green border-2 border-bg-primary" />
           </div>
           <div>
