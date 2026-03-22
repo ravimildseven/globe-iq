@@ -132,6 +132,7 @@ export default function Home() {
 
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
   const [flyToTarget, setFlyToTarget]         = useState<CountryCentroid | null>(null);
+  const [flyHome, setFlyHome]                 = useState(false);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [marketData, setMarketData] = useState<MarketData>({});
   const [recentCountries, setRecentCountries] = useState<CountryCentroid[]>([]);
@@ -147,6 +148,17 @@ export default function Home() {
       setRecentCountries(countries);
     } catch { /* ignore parse errors */ }
   }, []);
+
+  // Escape key — dismiss search beacon without opening panel
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && flyToTarget && !selectedCountry) {
+        setFlyToTarget(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [flyToTarget, selectedCountry]);
 
   // Starfield parallax — ref + direct DOM mutation avoids 60fps React re-renders
   const starfieldRef = useRef<HTMLDivElement>(null);
@@ -260,6 +272,7 @@ export default function Home() {
     playDeselectSound();
     setSelectedCountry(null);
     setFlyToTarget(null);
+    setFlyHome(true);           // pull camera back to home distance
   }, []);
 
   const handleZoomHandled = useCallback(() => {
@@ -278,73 +291,33 @@ export default function Home() {
         {/* Logo */}
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl glow-amber overflow-hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 512 512">
+            <div className="w-10 h-10 rounded-xl overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(245,158,11,0.25), 0 0 14px rgba(245,158,11,0.18)" }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
                 <defs>
-                  <radialGradient id="iconBg" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#182D40"/>
-                    <stop offset="100%" stopColor="#0D1B2A"/>
+                  <radialGradient id="lBg" cx="38%" cy="32%" r="65%">
+                    <stop offset="0%" stopColor="#163352"/>
+                    <stop offset="100%" stopColor="#060e18"/>
                   </radialGradient>
-                  <radialGradient id="iconGlobe" cx="35%" cy="30%" r="70%">
-                    <stop offset="0%" stopColor="#1D4268"/>
-                    <stop offset="42%" stopColor="#0F2336"/>
-                    <stop offset="100%" stopColor="#071018"/>
-                  </radialGradient>
-                  <radialGradient id="iconAtmo" cx="50%" cy="50%" r="50%">
-                    <stop offset="76%" stopColor="transparent"/>
-                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0.20"/>
-                  </radialGradient>
-                  <filter id="iHalo" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="10"/>
+                  <filter id="lGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="1.2" result="b"/>
+                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
                   </filter>
-                  <filter id="iGlow" x="-25%" y="-25%" width="150%" height="150%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  <filter id="lDot" x="-120%" y="-120%" width="340%" height="340%">
+                    <feGaussianBlur stdDeviation="1.5" result="b"/>
+                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
                   </filter>
-                  <filter id="iEqGlow" x="-20%" y="-80%" width="140%" height="260%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                  <filter id="iDot" x="-150%" y="-150%" width="400%" height="400%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                  <clipPath id="igc"><circle cx="256" cy="256" r="188"/></clipPath>
+                  <clipPath id="lc"><circle cx="20" cy="20" r="13"/></clipPath>
                 </defs>
-                <rect width="512" height="512" rx="96" fill="url(#iconBg)"/>
-                <g fill="white" opacity="0.5">
-                  <circle cx="48"  cy="60"  r="1.2"/><circle cx="88"  cy="36"  r="0.9"/>
-                  <circle cx="454" cy="48"  r="1.1"/><circle cx="472" cy="88"  r="0.8"/>
-                  <circle cx="42"  cy="448" r="1.0"/><circle cx="468" cy="456" r="1.2"/>
-                  <circle cx="78"  cy="466" r="0.8"/><circle cx="452" cy="420" r="0.9"/>
+                <rect width="40" height="40" rx="9" fill="#060e18"/>
+                <circle cx="20" cy="20" r="13" fill="url(#lBg)"/>
+                <ellipse cx="15" cy="14" rx="5" ry="3" fill="white" opacity="0.07" transform="rotate(-25 15 14)"/>
+                <g clipPath="url(#lc)" fill="none" stroke="#60A5FA" strokeWidth="0.5" opacity="0.18">
+                  <ellipse cx="20" cy="20" rx="13" ry="4.5"/>
+                  <ellipse cx="20" cy="14" rx="9"  ry="3"/>
                 </g>
-                <circle cx="256" cy="256" r="216" fill="none" stroke="#F59E0B" strokeWidth="32" opacity="0.12" filter="url(#iHalo)"/>
-                <circle cx="256" cy="256" r="188" fill="url(#iconGlobe)"/>
-                <circle cx="256" cy="256" r="188" fill="url(#iconAtmo)"/>
-                <g clipPath="url(#igc)">
-                  <ellipse cx="256" cy="419" rx="94"  ry="28"  fill="none" stroke="#F59E0B" strokeWidth="1.2" opacity="0.22"/>
-                  <ellipse cx="256" cy="350" rx="163" ry="49"  fill="none" stroke="#F59E0B" strokeWidth="1.5" opacity="0.32"/>
-                  <ellipse cx="256" cy="256" rx="188" ry="56"  fill="none" stroke="#F59E0B" strokeWidth="2.4" opacity="0.68" filter="url(#iEqGlow)"/>
-                  <ellipse cx="256" cy="162" rx="163" ry="49"  fill="none" stroke="#F59E0B" strokeWidth="1.5" opacity="0.32"/>
-                  <ellipse cx="256" cy="93"  rx="94"  ry="28"  fill="none" stroke="#F59E0B" strokeWidth="1.2" opacity="0.22"/>
-                  <line x1="256" y1="68" x2="256" y2="444" stroke="#F59E0B" strokeWidth="1.8" opacity="0.48"/>
-                  <ellipse cx="256" cy="256" rx="94"  ry="188" fill="none" stroke="#F59E0B" strokeWidth="1.2" opacity="0.26"/>
-                  <ellipse cx="256" cy="256" rx="163" ry="188" fill="none" stroke="#F59E0B" strokeWidth="1.0" opacity="0.20"/>
-                </g>
-                <g clipPath="url(#igc)">
-                  <circle cx="272" cy="172" r="5.5" fill="#F59E0B" opacity="0.95" filter="url(#iDot)"/>
-                  <circle cx="348" cy="186" r="4.0" fill="#F59E0B" opacity="0.85" filter="url(#iDot)"/>
-                  <circle cx="186" cy="180" r="3.5" fill="#F59E0B" opacity="0.78" filter="url(#iDot)"/>
-                  <circle cx="312" cy="212" r="2.8" fill="#F59E0B" opacity="0.65"/>
-                  <circle cx="210" cy="310" r="2.5" fill="#F59E0B" opacity="0.55"/>
-                  <circle cx="272" cy="172" r="12"  fill="none" stroke="#F59E0B" strokeWidth="1" opacity="0.35"/>
-                  <line x1="186" y1="180" x2="272" y2="172" stroke="#F59E0B" strokeWidth="1.0" opacity="0.35"/>
-                  <line x1="272" y1="172" x2="312" y2="212" stroke="#F59E0B" strokeWidth="1.0" opacity="0.32"/>
-                  <line x1="312" y1="212" x2="348" y2="186" stroke="#F59E0B" strokeWidth="1.0" opacity="0.32"/>
-                </g>
-                <circle cx="256" cy="256" r="188" fill="none" stroke="#F59E0B" strokeWidth="3.0" opacity="0.92" filter="url(#iGlow)"/>
-                <circle cx="256" cy="256" r="188" fill="none" stroke="white"  strokeWidth="0.8" opacity="0.12"/>
-                <ellipse cx="196" cy="196" rx="58" ry="38" fill="white" opacity="0.05" transform="rotate(-30 196 196)"/>
+                <ellipse cx="20" cy="20" rx="13" ry="4.5" fill="none" stroke="#F59E0B" strokeWidth="1.6" filter="url(#lGlow)"/>
+                <circle cx="20" cy="20" r="13" fill="none" stroke="#F59E0B" strokeWidth="1.4" filter="url(#lGlow)"/>
+                <circle cx="24" cy="14" r="1.8" fill="#F59E0B" filter="url(#lDot)"/>
               </svg>
             </div>
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green border-2 border-bg-primary" />
@@ -372,6 +345,8 @@ export default function Home() {
           selectedCountry={selectedCountry}
           onCountrySelect={handleCountrySelect}
           flyToTarget={flyToTarget}
+          flyHome={flyHome}
+          onFlyHomeDone={() => setFlyHome(false)}
           zoomDelta={zoomDelta}
           onZoomHandled={handleZoomHandled}
           theme={globeTheme}

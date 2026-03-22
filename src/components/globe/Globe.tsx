@@ -21,6 +21,8 @@ interface GlobeProps {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   flyToTarget?: CountryCentroid | null;
+  flyHome?: boolean;
+  onFlyHomeDone?: () => void;
   zoomDelta: number;
   onZoomHandled: () => void;
   theme: "dark" | "light";
@@ -1014,11 +1016,15 @@ const FLY_DURATION = 1.4; // seconds — slightly longer for smooth zoom+rotate 
 function CameraAnimator({
   selectedCountry,
   flyToTarget,
+  flyHome,
+  onFlyHomeDone,
   doubleClickTarget,
   onArrival,
 }: {
   selectedCountry: CountryCentroid | null;
   flyToTarget?: CountryCentroid | null;
+  flyHome?: boolean;
+  onFlyHomeDone?: () => void;
   doubleClickTarget: THREE.Vector3 | null;
   onArrival?: () => void;
 }) {
@@ -1064,6 +1070,20 @@ function CameraAnimator({
     duration.current     = FLY_DURATION;
     isCountryFly.current = false; // no arrival pulse for search
   }, [flyToTarget, camera]);
+
+  // Fly home — pull back to distance 2.7 in current camera direction
+  useEffect(() => {
+    if (!flyHome) return;
+    const dir = camera.position.clone().normalize();
+    flyStart.current     = camera.position.clone();
+    flyEnd.current       = dir.multiplyScalar(2.7);
+    elapsed.current      = 0;
+    duration.current     = FLY_DURATION;
+    isCountryFly.current = false;
+    prevCode.current     = null;
+    prevSearchCode.current = null;
+    onFlyHomeDone?.();
+  }, [flyHome, camera, onFlyHomeDone]);
 
   // Double-click → zoom in toward clicked direction
   useEffect(() => {
@@ -1111,11 +1131,14 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
-  selectedCountry, flyToTarget, onCountrySelect, onInteractionStart, onHoverCountry,
+  selectedCountry, flyToTarget, flyHome, onFlyHomeDone,
+  onCountrySelect, onInteractionStart, onHoverCountry,
   zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove,
 }: {
   selectedCountry: CountryCentroid | null;
   flyToTarget?: CountryCentroid | null;
+  flyHome?: boolean;
+  onFlyHomeDone?: () => void;
   onCountrySelect: (c: CountryCentroid) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
@@ -1176,6 +1199,8 @@ function SceneRoot({
       <CameraAnimator
         selectedCountry={selectedCountry}
         flyToTarget={flyToTarget}
+        flyHome={flyHome}
+        onFlyHomeDone={onFlyHomeDone}
         doubleClickTarget={dblClickTarget}
         onArrival={handleArrival}
       />
@@ -1203,7 +1228,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, flyHome, onFlyHomeDone, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -1233,6 +1258,8 @@ export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, z
           <SceneRoot
             selectedCountry={selectedCountry}
             flyToTarget={flyToTarget}
+            flyHome={flyHome}
+            onFlyHomeDone={onFlyHomeDone}
             onCountrySelect={onCountrySelect}
             onInteractionStart={stopRotation}
             onHoverCountry={(c) => { setHoveredCountry(c); if (c) playHoverSound(); }}
