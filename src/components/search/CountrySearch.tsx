@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Search, X, MapPin } from "lucide-react";
 import { countryCentroids, CountryCentroid } from "@/lib/countries-geo";
 import { flagEmoji } from "@/lib/flag";
@@ -125,8 +126,8 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
         </kbd>
       </button>
 
-      {/* ── Modal ────────────────────────────────────────────────────────────── */}
-      {open && (
+      {/* ── Modal (portalled to body so fixed positioning is always viewport-relative) */}
+      {open && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -274,7 +275,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
               </div>
             </div>
           </div>
-        </>
+        </>, document.body
       )}
     </>
   );

@@ -330,8 +330,8 @@ body, .glass, .glass-light, header, aside, footer {
 .light ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 
-/* ─── Search modal: bottom on desktop, top on real touch phones ─── */
+/* ─── Search modal: top on mobile (<640px), bottom on desktop ─── */
 .search-modal { bottom: 110px; max-height: calc(100dvh - 140px); }
-@media (hover: none) and (pointer: coarse) {
-  .search-modal { top: 16px; bottom: auto; max-height: calc(100dvh - 32px); }
+@media (max-width: 639px) {
+  .search-modal { top: 12px; bottom: auto; max-height: calc(100dvh - 24px); }
 }
