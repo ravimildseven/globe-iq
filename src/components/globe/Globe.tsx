@@ -9,6 +9,7 @@ import {
   loadCountryShapes, findCountryAtPoint, spherePointToLatLng,
   type CountryShape,
 } from "@/lib/world-geo";
+import { CAPITAL_CITIES } from "@/lib/capitals";
 
 // Globe texture URLs — from three-globe@2.34.1 unpkg CDN (same library source)
 const TEX_DAY_DARK  = "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg";
@@ -23,6 +24,7 @@ interface GlobeProps {
   theme: "dark" | "light";
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
+  onCameraMove?: (az: number, el: number) => void;
 }
 
 // ─── Real-time subsolar point ─────────────────────────────────────────────────
@@ -509,6 +511,195 @@ function MajorCountryLabels({
   );
 }
 
+// ─── Capital city dot + label — appears when zoomed in (camDist < 2.4) ────────
+// Uses the same direct DOM mutation pattern as MajorCountryLabel (no setState).
+function CityMarker({ city, overlayActive }: {
+  city: typeof CAPITAL_CITIES[number];
+  overlayActive: boolean;
+}) {
+  const pos    = useMemo(() => latLngToVector3(city.lat, city.lng, 1.025), [city.lat, city.lng]);
+  const posVec = useMemo(() => new THREE.Vector3(...pos).normalize(), [pos]);
+  const { camera } = useThree();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useFrame(() => {
+    if (!divRef.current) return;
+    if (overlayActive || camera.position.length() > 2.4) {
+      divRef.current.style.opacity = "0";
+      return;
+    }
+    const dot = posVec.dot(camera.position.clone().normalize());
+    // Fade in cleanly above dot=0.25 (near-horizon suppression)
+    divRef.current.style.opacity = dot < 0.25 ? "0" : String(Math.min(1, (dot - 0.25) / 0.15));
+  });
+
+  return (
+    <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
+      zIndexRange={[4, 0]} occlude={false}>
+      <div ref={divRef} style={{ opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        {/* Dot */}
+        <div style={{
+          width: 4, height: 4, borderRadius: "50%", flexShrink: 0,
+          background: "rgba(245,158,11,0.9)",
+          boxShadow: "0 0 5px rgba(245,158,11,0.7)",
+        }} />
+        {/* Label */}
+        <span style={{
+          fontSize: 8,
+          fontFamily: "var(--font-heading)",
+          fontWeight: 600,
+          color: "rgba(253,211,77,0.9)",
+          whiteSpace: "nowrap",
+          textShadow: "0 1px 4px rgba(0,0,0,0.95)",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase" as const,
+        }}>
+          {city.name}
+        </span>
+      </div>
+    </Html>
+  );
+}
+
+function CityMarkers({ overlayActive }: { overlayActive: boolean }) {
+  return (
+    <>
+      {CAPITAL_CITIES.map(city => (
+        <CityMarker key={city.code} city={city} overlayActive={overlayActive} />
+      ))}
+    </>
+  );
+}
+
+// ─── Ocean / sea labels — italic blue-grey text, only at far zoom ──────────────
+const OCEAN_LABELS = [
+  { name: "Pacific Ocean",    lat:   0,   lng: -155, size: 12 },
+  { name: "Atlantic Ocean",   lat:   0,   lng:  -30, size: 12 },
+  { name: "Indian Ocean",     lat: -20,   lng:   80, size: 11 },
+  { name: "Arctic Ocean",     lat:  82,   lng:    0, size: 10 },
+  { name: "Southern Ocean",   lat: -65,   lng:    0, size: 10 },
+  { name: "Mediterranean",    lat:  36,   lng:   18, size:  9 },
+  { name: "Caribbean Sea",    lat:  15,   lng:  -75, size:  9 },
+] as const;
+
+function OceanLabel({ name, lat, lng, size }: { name: string; lat: number; lng: number; size: number }) {
+  const pos    = useMemo(() => latLngToVector3(lat, lng, 1.01), [lat, lng]);
+  const posVec = useMemo(() => new THREE.Vector3(...pos).normalize(), [pos]);
+  const { camera } = useThree();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useFrame(() => {
+    if (!divRef.current) return;
+    const camDist = camera.position.length();
+    // Only at far-to-mid zoom; fade out below 2.4 (zoomed in)
+    if (camDist < 2.0) { divRef.current.style.opacity = "0"; return; }
+    const dot = posVec.dot(camera.position.clone().normalize());
+    if (dot < 0.05) { divRef.current.style.opacity = "0"; return; }
+    // Fade in from camDist 2.0→2.5, cap at 30% opacity
+    const distFade = Math.min(1, (camDist - 2.0) / 0.5);
+    const dotFade  = Math.min(1, (dot - 0.05) / 0.20);
+    divRef.current.style.opacity = String(distFade * dotFade * 0.30);
+  });
+
+  return (
+    <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
+      zIndexRange={[1, 0]} occlude={false}>
+      <div ref={divRef} style={{ opacity: 0 }}>
+        <span style={{
+          fontSize: size,
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontStyle: "italic",
+          fontWeight: 400,
+          color: "rgba(148,196,232,0.85)",
+          whiteSpace: "nowrap",
+          textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase" as const,
+        }}>
+          {name}
+        </span>
+      </div>
+    </Html>
+  );
+}
+
+function OceanLabels() {
+  return (
+    <>
+      {OCEAN_LABELS.map(o => (
+        <OceanLabel key={o.name} {...o} />
+      ))}
+    </>
+  );
+}
+
+// ─── Sun lens flare — subtle glow at subsolar point, dark mode only ────────────
+function SunLensFlare({
+  sunDirRef, theme,
+}: {
+  sunDirRef: React.MutableRefObject<THREE.Vector3>;
+  theme: "dark" | "light";
+}) {
+  const pos    = useMemo(() => {
+    const v = sunDirRef.current;
+    return [v.x * 1.04, v.y * 1.04, v.z * 1.04] as [number, number, number];
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const posVec = useMemo(() => new THREE.Vector3(...pos).normalize(), [pos]);
+  const { camera } = useThree();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useFrame(() => {
+    if (!divRef.current) return;
+    if (theme === "light") { divRef.current.style.opacity = "0"; return; }
+    const dot = posVec.dot(camera.position.clone().normalize());
+    // Visible when sun faces camera; fade in sharply above dot=0.4
+    divRef.current.style.opacity = dot < 0.4 ? "0" : String(Math.min(1, (dot - 0.4) / 0.3));
+  });
+
+  return (
+    <Html position={pos} center style={{ pointerEvents: "none", userSelect: "none" }}
+      zIndexRange={[3, 0]} occlude={false}>
+      <div ref={divRef} style={{ opacity: 0, position: "relative", width: 70, height: 70,
+        display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {/* Outer diffuse halo */}
+        <div style={{
+          position: "absolute", width: 70, height: 70, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,210,60,0.14) 0%, rgba(255,160,20,0.05) 55%, transparent 75%)",
+        }} />
+        {/* Mid ring */}
+        <div style={{
+          position: "absolute", width: 38, height: 38, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,230,100,0.18) 0%, rgba(255,190,50,0.08) 55%, transparent 75%)",
+        }} />
+        {/* Core */}
+        <div style={{
+          width: 11, height: 11, borderRadius: "50%", flexShrink: 0,
+          background: "radial-gradient(circle, rgba(255,255,210,0.95) 0%, rgba(255,210,60,0.6) 50%, transparent 100%)",
+          boxShadow: "0 0 6px rgba(255,220,80,0.5)",
+        }} />
+      </div>
+    </Html>
+  );
+}
+
+// ─── Camera tracker — reads position each frame, reports azimuth + elevation ──
+function CameraTracker({ onCameraMove }: { onCameraMove?: (az: number, el: number) => void }) {
+  const { camera } = useThree();
+  const frameRef   = useRef(0);
+
+  useFrame(() => {
+    if (!onCameraMove) return;
+    if (++frameRef.current % 4 !== 0) return; // throttle to ~15 fps
+    const { x, y, z } = camera.position;
+    const len = Math.sqrt(x * x + y * y + z * z);
+    const az  = Math.atan2(x, z) / Math.PI;              // –1 … +1
+    const el  = Math.asin(Math.max(-1, Math.min(1, y / len))) / (Math.PI / 2); // –1 … +1
+    onCameraMove(az, el);
+  });
+
+  return null;
+}
+
 // ─── Selected-country centroid label (amber pill, 3-D anchored) ───────────────
 function SelectedLabel({ country }: { country: CountryCentroid }) {
   const labelPos = useMemo(() => latLngToVector3(country.lat, country.lng, 1.06), [country.lat, country.lng]);
@@ -751,6 +942,9 @@ function EarthGlobe({
         selectedCode={selectedCountry?.code ?? null}
       />
 
+      {/* Capital city dots — zoom-gated, hidden when any overlay is active */}
+      <CityMarkers overlayActive={!!overlayColors} />
+
       <Atmosphere theme={theme} />
     </group>
   );
@@ -854,7 +1048,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
   selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
-  zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode,
+  zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
@@ -866,6 +1060,7 @@ function SceneRoot({
   theme: "dark" | "light";
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
+  onCameraMove?: (az: number, el: number) => void;
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
@@ -910,12 +1105,15 @@ function SceneRoot({
         overlayColors={overlayColors}
         nightLightsMode={nightLightsMode}
       />
+      <OceanLabels />
+      <SunLensFlare sunDirRef={sunDir} theme={theme} />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
       <CameraAnimator
         selectedCountry={selectedCountry}
         doubleClickTarget={dblClickTarget}
         onArrival={handleArrival}
       />
+      <CameraTracker onCameraMove={onCameraMove} />
       <AutoRotate enabled={!isInteracting && !selectedCountry} />
       {showArrivalPulse && selectedCountry && (() => {
         const pos = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1.004);
@@ -935,7 +1133,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -973,6 +1171,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             theme={theme}
             overlayColors={overlayColors}
             nightLightsMode={nightLightsMode}
+            onCameraMove={onCameraMove}
           />
         </Suspense>
       </Canvas>

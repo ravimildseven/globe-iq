@@ -1,0 +1,70 @@
+/**
+ * Capital cities for globe city-marker overlay.
+ * Shown as dot + label when camera distance < 2.4 (zoomed in).
+ */
+export interface CityEntry {
+  code: string; // ISO alpha-2 country code
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+export const CAPITAL_CITIES: CityEntry[] = [
+  { code: "US", name: "Washington D.C.", lat:  38.89, lng:  -77.04 },
+  { code: "GB", name: "London",          lat:  51.51, lng:   -0.13 },
+  { code: "FR", name: "Paris",           lat:  48.86, lng:    2.35 },
+  { code: "DE", name: "Berlin",          lat:  52.52, lng:   13.41 },
+  { code: "RU", name: "Moscow",          lat:  55.75, lng:   37.62 },
+  { code: "CN", name: "Beijing",         lat:  39.91, lng:  116.39 },
+  { code: "JP", name: "Tokyo",           lat:  35.68, lng:  139.69 },
+  { code: "IN", name: "New Delhi",       lat:  28.61, lng:   77.21 },
+  { code: "BR", name: "Brasília",        lat: -15.78, lng:  -47.93 },
+  { code: "AU", name: "Canberra",        lat: -35.28, lng:  149.13 },
+  { code: "CA", name: "Ottawa",          lat:  45.42, lng:  -75.70 },
+  { code: "MX", name: "Mexico City",     lat:  19.43, lng:  -99.13 },
+  { code: "IT", name: "Rome",            lat:  41.90, lng:   12.50 },
+  { code: "ES", name: "Madrid",          lat:  40.42, lng:   -3.70 },
+  { code: "ZA", name: "Pretoria",        lat: -25.74, lng:   28.19 },
+  { code: "EG", name: "Cairo",           lat:  30.06, lng:   31.25 },
+  { code: "SA", name: "Riyadh",          lat:  24.69, lng:   46.72 },
+  { code: "NG", name: "Abuja",           lat:   9.07, lng:    7.40 },
+  { code: "TR", name: "Ankara",          lat:  39.93, lng:   32.86 },
+  { code: "AR", name: "Buenos Aires",    lat: -34.61, lng:  -58.37 },
+  { code: "ID", name: "Jakarta",         lat:  -6.21, lng:  106.84 },
+  { code: "PK", name: "Islamabad",       lat:  33.72, lng:   73.06 },
+  { code: "KR", name: "Seoul",           lat:  37.57, lng:  126.98 },
+  { code: "TH", name: "Bangkok",         lat:  13.75, lng:  100.51 },
+  { code: "KE", name: "Nairobi",         lat:  -1.29, lng:   36.82 },
+  { code: "UA", name: "Kyiv",            lat:  50.45, lng:   30.52 },
+  { code: "PL", name: "Warsaw",          lat:  52.23, lng:   21.01 },
+  { code: "NL", name: "Amsterdam",       lat:  52.37, lng:    4.89 },
+  { code: "SE", name: "Stockholm",       lat:  59.33, lng:   18.07 },
+  { code: "NO", name: "Oslo",            lat:  59.91, lng:   10.75 },
+  { code: "AT", name: "Vienna",          lat:  48.21, lng:   16.37 },
+  { code: "GR", name: "Athens",          lat:  37.98, lng:   23.73 },
+  { code: "PT", name: "Lisbon",          lat:  38.72, lng:   -9.14 },
+  { code: "CZ", name: "Prague",          lat:  50.08, lng:   14.43 },
+  { code: "HU", name: "Budapest",        lat:  47.50, lng:   19.04 },
+  { code: "RO", name: "Bucharest",       lat:  44.43, lng:   26.10 },
+  { code: "PH", name: "Manila",          lat:  14.60, lng:  120.98 },
+  { code: "MY", name: "Kuala Lumpur",    lat:   3.14, lng:  101.69 },
+  { code: "SG", name: "Singapore",       lat:   1.29, lng:  103.82 },
+  { code: "VN", name: "Hanoi",           lat:  21.03, lng:  105.85 },
+  { code: "IL", name: "Jerusalem",       lat:  31.78, lng:   35.22 },
+  { code: "MA", name: "Rabat",           lat:  34.02, lng:   -6.83 },
+  { code: "TZ", name: "Dodoma",          lat:  -6.17, lng:   35.74 },
+  { code: "ET", name: "Addis Ababa",     lat:   9.02, lng:   38.75 },
+  { code: "NZ", name: "Wellington",      lat: -41.29, lng:  174.78 },
+  { code: "IS", name: "Reykjavik",       lat:  64.15, lng:  -21.94 },
+  { code: "PE", name: "Lima",            lat: -12.05, lng:  -77.04 },
+  { code: "CO", name: "Bogotá",          lat:   4.71, lng:  -74.07 },
+  { code: "CL", name: "Santiago",        lat: -33.45, lng:  -70.67 },
+  { code: "NP", name: "Kathmandu",       lat:  27.72, lng:   85.32 },
+  { code: "IR", name: "Tehran",          lat:  35.69, lng:   51.42 },
+  { code: "IQ", name: "Baghdad",         lat:  33.34, lng:   44.40 },
+  { code: "AE", name: "Abu Dhabi",       lat:  24.47, lng:   54.37 },
+  { code: "BD", name: "Dhaka",           lat:  23.71, lng:   90.41 },
+  { code: "TW", name: "Taipei",          lat:  25.03, lng:  121.52 },
+  { code: "KH", name: "Phnom Penh",      lat:  11.57, lng:  104.92 },
+  { code: "CH", name: "Bern",            lat:  46.95, lng:    7.45 },
+];

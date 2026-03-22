@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { CountryCentroid, countryCentroids } from "@/lib/countries-geo";
@@ -34,7 +34,8 @@ const Globe = dynamic(() => import("@/components/globe/Globe"), {
 });
 
 /* ── Starfield: 120 pseudo-random stars ──────────────────── */
-function Starfield() {
+/* Starfield accepts a ref so the parent can apply a CSS translate for parallax */
+const Starfield = forwardRef<HTMLDivElement>(function Starfield(_, ref) {
   const stars = useMemo(() =>
     Array.from({ length: 120 }, (_, i) => {
       const seed = i * 137.508;
@@ -47,7 +48,8 @@ function Starfield() {
     }), []);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+    <div ref={ref} className="absolute inset-0 overflow-hidden pointer-events-none"
+      aria-hidden style={{ willChange: "transform" }}>
       {stars.map(s => (
         <div
           key={s.key}
@@ -64,7 +66,7 @@ function Starfield() {
       ))}
     </div>
   );
-}
+});
 
 /* ── Ambient gradient blobs ──────────────────────────────── */
 function AmbientBlobs({ theme }: { theme: "dark" | "light" }) {
@@ -139,6 +141,15 @@ export default function Home() {
         .filter((c): c is CountryCentroid => !!c);
       setRecentCountries(countries);
     } catch { /* ignore parse errors */ }
+  }, []);
+
+  // Starfield parallax — ref + direct DOM mutation avoids 60fps React re-renders
+  const starfieldRef = useRef<HTMLDivElement>(null);
+  const handleCameraMove = useCallback((az: number, el: number) => {
+    if (starfieldRef.current) {
+      starfieldRef.current.style.transform =
+        `translate(${(az * 22).toFixed(1)}px, ${(el * 14).toFixed(1)}px)`;
+    }
   }, []);
 
   // Fetch market data on mount, refresh every 5 minutes
@@ -245,7 +256,7 @@ export default function Home() {
     <main className="relative w-screen h-screen overflow-hidden bg-bg-primary hud-scan">
 
       {/* ── Deep space background ── */}
-      <Starfield />
+      <Starfield ref={starfieldRef} />
       <AmbientBlobs theme={globeTheme} />
 
       {/* ── Header ── */}
@@ -283,6 +294,7 @@ export default function Home() {
           theme={globeTheme}
           overlayColors={overlayColors}
           nightLightsMode={nightLightsMode}
+          onCameraMove={handleCameraMove}
         />
       </div>
 
