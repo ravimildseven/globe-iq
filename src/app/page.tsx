@@ -263,8 +263,13 @@ export default function Home() {
       <header className="absolute top-0 left-0 right-0 z-40 px-6 pt-5 pb-3 flex items-center justify-between pointer-events-none">
         {/* Logo */}
         <div className="flex items-center gap-3 pointer-events-auto">
-          <div className="relative w-10 h-10 rounded-xl glass glow-amber flex items-center justify-center">
-            <Globe2 size={20} className="text-accent-amber" />
+          <div className="relative flex-shrink-0">
+            <img
+              src="/logo-icon.svg"
+              alt="GlobeIQ"
+              className="w-10 h-10 rounded-xl"
+              draggable={false}
+            />
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green border-2 border-bg-primary" />
           </div>
           <div>

@@ -3,8 +3,24 @@ import "./globals.css";
 import ThemeProvider from "@/providers/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Globe IQ — World Intelligence Dashboard",
-  description: "Interactive 3D globe with real-time country intelligence",
+  title: "GlobeIQ — World Intelligence",
+  description: "Explore the world in real-time. Interactive globe with live markets, news, conflicts, and more.",
+  icons: {
+    icon: [{ url: "/logo-icon.svg", type: "image/svg+xml" }],
+    apple: "/logo-icon.svg",
+  },
+  openGraph: {
+    title: "GlobeIQ — World Intelligence",
+    description: "Explore the world in real-time. Interactive globe with live markets, news, conflicts, and more.",
+    images: [{ url: "/logo-primary.svg", width: 512, height: 512 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GlobeIQ — World Intelligence",
+    description: "Explore the world in real-time. Interactive globe with live markets, news, conflicts, and more.",
+    images: ["/logo-primary.svg"],
+  },
 };
 
 export default function RootLayout({
