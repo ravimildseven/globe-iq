@@ -135,9 +135,9 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
 
           {/* Search panel */}
           <div
-            className="fixed top-[72px] left-1/2 -translate-x-1/2 z-[70]
+            className="fixed bottom-[110px] left-1/2 -translate-x-1/2 z-[70]
                        w-[520px] max-w-[calc(100vw-24px)]
-                       animate-in fade-in slide-in-from-top-2 duration-200"
+                       animate-in fade-in slide-in-from-bottom-2 duration-200"
             role="dialog"
             aria-modal="true"
             aria-label="Country search"

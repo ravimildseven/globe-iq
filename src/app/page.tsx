@@ -3,13 +3,14 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import { CountryCentroid } from "@/lib/countries-geo";
+import { CountryCentroid, countryCentroids } from "@/lib/countries-geo";
+import { flagEmoji } from "@/lib/flag";
 import InfoPanel from "@/components/panel/InfoPanel";
 import AmbientSound from "@/components/ui/AmbientSound";
 import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { Globe2, Plus, Minus } from "lucide-react";
+import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
 import { MarketData, marketHex, marketOpacity } from "@/lib/marketIndices";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
@@ -100,6 +101,18 @@ export default function Home() {
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [marketData, setMarketData] = useState<MarketData>({});
+  const [recentCountries, setRecentCountries] = useState<CountryCentroid[]>([]);
+
+  // Hydrate recent history from localStorage after mount
+  useEffect(() => {
+    try {
+      const codes: string[] = JSON.parse(localStorage.getItem("globe-iq:recent") ?? "[]");
+      const countries = codes
+        .map(code => countryCentroids.find(c => c.code === code))
+        .filter((c): c is CountryCentroid => !!c);
+      setRecentCountries(countries);
+    } catch { /* ignore parse errors */ }
+  }, []);
 
   // Fetch market data on mount, refresh every 5 minutes
   useEffect(() => {
@@ -124,7 +137,17 @@ export default function Home() {
 
   const handleCountrySelect = useCallback((country: CountryCentroid) => {
     setSelectedCountry(country);
+    setRecentCountries(prev => {
+      const next = [country, ...prev.filter(c => c.code !== country.code)].slice(0, 5);
+      try { localStorage.setItem("globe-iq:recent", JSON.stringify(next.map(c => c.code))); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
+
+  const handleRandomCountry = useCallback(() => {
+    const country = countryCentroids[Math.floor(Math.random() * countryCentroids.length)];
+    handleCountrySelect(country);
+  }, [handleCountrySelect]);
 
   const handleClose = useCallback(() => {
     setSelectedCountry(null);
@@ -157,11 +180,6 @@ export default function Home() {
               World Intelligence
             </p>
           </div>
-        </div>
-
-        {/* Centre — country search */}
-        <div className="pointer-events-auto">
-          <CountrySearch onSelect={handleCountrySelect} />
         </div>
 
         {/* Right — theme toggle + sound */}
@@ -210,6 +228,47 @@ export default function Home() {
           marketData={marketData}
         />
       )}
+
+      {/* ── Bottom search dock — floating above HUD bar ── */}
+      <div className="absolute bottom-[62px] left-1/2 -translate-x-1/2 z-40
+                      flex flex-col items-center gap-2 pointer-events-none">
+
+        {/* Recently viewed chips */}
+        {recentCountries.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-[480px] pointer-events-auto">
+            {recentCountries.map(c => (
+              <button
+                key={c.code}
+                onClick={() => handleCountrySelect(c)}
+                title={c.name}
+                className="flex items-center gap-1.5 glass rounded-full px-2.5 py-1
+                           border border-border hover:border-accent-amber/40
+                           text-text-muted hover:text-text-primary transition-colors
+                           hover:shadow-[0_0_8px_rgba(245,158,11,0.12)]"
+              >
+                <span style={{ fontSize: 13, lineHeight: 1 }}>{flagEmoji(c.code)}</span>
+                <span className="hidden sm:block text-[11px] font-medium">{c.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Search pill + random-country button */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <CountrySearch onSelect={handleCountrySelect} />
+          <button
+            onClick={handleRandomCountry}
+            title="Explore a random country"
+            aria-label="Explore a random country"
+            className="w-9 h-9 glass rounded-full border border-border
+                       hover:border-accent-amber/40 flex items-center justify-center
+                       text-text-muted hover:text-accent-amber transition-colors
+                       hover:shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+          >
+            <Shuffle size={15} />
+          </button>
+        </div>
+      </div>
 
       {/* ── Bottom HUD status bar ── */}
       <div className="absolute bottom-5 left-6 right-6 z-40 flex items-center justify-between pointer-events-none">
