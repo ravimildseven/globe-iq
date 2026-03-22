@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GlobeIQ — Icon Mark
+  512×512 · Minimalist globe · Works on dark + light backgrounds
+  Dark navy circle bg ensures readability on any surface.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Dark navy circle background gradient -->
+    <radialGradient id="iconBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#182D40"/>
+      <stop offset="100%" stop-color="#0D1B2A"/>
+    </radialGradient>
+
+    <!-- Globe surface gradient — lit from upper-left -->
+    <radialGradient id="iconGlobe" cx="35%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#1D4268"/>
+      <stop offset="42%"  stop-color="#0F2336"/>
+      <stop offset="100%" stop-color="#071018"/>
+    </radialGradient>
+
+    <!-- Atmosphere edge -->
+    <radialGradient id="iconAtmo" cx="50%" cy="50%" r="50%">
+      <stop offset="76%"  stop-color="transparent"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.20"/>
+    </radialGradient>
+
+    <!-- Halo blur -->
+    <filter id="iHalo" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+
+    <!-- Sharp glow for the ring -->
+    <filter id="iGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Equator line glow -->
+    <filter id="iEqGlow" x="-20%" y="-80%" width="140%" height="260%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Dot glow -->
+    <filter id="iDot" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip to globe -->
+    <clipPath id="igc">
+      <circle cx="256" cy="256" r="188"/>
+    </clipPath>
+  </defs>
+
+  <!--
+    Globe: cx=256, cy=256, R=188
+    Perspective factor: 0.30
+    Latitude line positions (orthographic projection):
+      Equator:  cy=256,      rx=188, ry=56
+      ±30°:     cy=256∓94,  rx=163, ry=49
+      ±60°:     cy=256∓163, rx=94,  ry=28
+    Meridians:
+      0°  → vertical line
+      30° → rx=94,  ry=188
+      60° → rx=163, ry=188
+  -->
+
+  <!-- ── Rounded-square icon background ── -->
+  <rect width="512" height="512" rx="96" fill="url(#iconBg)"/>
+
+  <!-- Tiny star accents (subtle) -->
+  <g fill="white" opacity="0.5">
+    <circle cx="48"  cy="60"  r="1.2"/>
+    <circle cx="88"  cy="36"  r="0.9"/>
+    <circle cx="454" cy="48"  r="1.1"/>
+    <circle cx="472" cy="88"  r="0.8"/>
+    <circle cx="42"  cy="448" r="1.0"/>
+    <circle cx="468" cy="456" r="1.2"/>
+    <circle cx="78"  cy="466" r="0.8"/>
+    <circle cx="452" cy="420" r="0.9"/>
+  </g>
+
+  <!-- ── Atmosphere halo ── -->
+  <circle cx="256" cy="256" r="216" fill="none"
+          stroke="#F59E0B" stroke-width="32" opacity="0.12"
+          filter="url(#iHalo)"/>
+
+  <!-- ── Globe body ── -->
+  <circle cx="256" cy="256" r="188" fill="url(#iconGlobe)"/>
+  <circle cx="256" cy="256" r="188" fill="url(#iconAtmo)"/>
+
+  <!-- ── Globe grid (clipped) ── -->
+  <g clip-path="url(#igc)">
+
+    <!-- Latitude 60°S  cy=419  rx=94  ry=28 -->
+    <ellipse cx="256" cy="419" rx="94"  ry="28"
+             fill="none" stroke="#F59E0B" stroke-width="1.2" opacity="0.22"/>
+
+    <!-- Latitude 30°S  cy=350  rx=163 ry=49 -->
+    <ellipse cx="256" cy="350" rx="163" ry="49"
+             fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.32"/>
+
+    <!-- Equator (hero line) -->
+    <ellipse cx="256" cy="256" rx="188" ry="56"
+             fill="none" stroke="#F59E0B" stroke-width="2.4" opacity="0.68"
+             filter="url(#iEqGlow)"/>
+
+    <!-- Latitude 30°N  cy=162  rx=163 ry=49 -->
+    <ellipse cx="256" cy="162" rx="163" ry="49"
+             fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.32"/>
+
+    <!-- Latitude 60°N  cy=93   rx=94  ry=28 -->
+    <ellipse cx="256" cy="93"  rx="94"  ry="28"
+             fill="none" stroke="#F59E0B" stroke-width="1.2" opacity="0.22"/>
+
+    <!-- Prime meridian -->
+    <line x1="256" y1="68" x2="256" y2="444"
+          stroke="#F59E0B" stroke-width="1.8" opacity="0.48"/>
+
+    <!-- 30° meridians  rx=94  ry=188 -->
+    <ellipse cx="256" cy="256" rx="94"  ry="188"
+             fill="none" stroke="#F59E0B" stroke-width="1.2" opacity="0.26"/>
+
+    <!-- 60° meridians  rx=163 ry=188 -->
+    <ellipse cx="256" cy="256" rx="163" ry="188"
+             fill="none" stroke="#F59E0B" stroke-width="1.0" opacity="0.20"/>
+  </g>
+
+  <!-- ── Intelligence data nodes ── -->
+  <g clip-path="url(#igc)">
+    <!-- Primary node — W Europe -->
+    <circle cx="272" cy="172" r="5.5" fill="#F59E0B" opacity="0.95" filter="url(#iDot)"/>
+    <!-- Secondary nodes -->
+    <circle cx="348" cy="186" r="4.0" fill="#F59E0B" opacity="0.85" filter="url(#iDot)"/>
+    <circle cx="186" cy="180" r="3.5" fill="#F59E0B" opacity="0.78" filter="url(#iDot)"/>
+    <circle cx="312" cy="212" r="2.8" fill="#F59E0B" opacity="0.65"/>
+    <circle cx="210" cy="310" r="2.5" fill="#F59E0B" opacity="0.55"/>
+
+    <!-- Pulse ring on primary node -->
+    <circle cx="272" cy="172" r="12" fill="none"
+            stroke="#F59E0B" stroke-width="1" opacity="0.35"/>
+
+    <!-- Connection lines -->
+    <line x1="186" y1="180" x2="272" y2="172"
+          stroke="#F59E0B" stroke-width="1.0" opacity="0.35"/>
+    <line x1="272" y1="172" x2="312" y2="212"
+          stroke="#F59E0B" stroke-width="1.0" opacity="0.32"/>
+    <line x1="312" y1="212" x2="348" y2="186"
+          stroke="#F59E0B" stroke-width="1.0" opacity="0.32"/>
+  </g>
+
+  <!-- ── Globe outer ring ── -->
+  <circle cx="256" cy="256" r="188" fill="none"
+          stroke="#F59E0B" stroke-width="3.0" opacity="0.92"
+          filter="url(#iGlow)"/>
+
+  <!-- Fine white edge definition (helps on dark bgs) -->
+  <circle cx="256" cy="256" r="188" fill="none"
+          stroke="white" stroke-width="0.8" opacity="0.12"/>
+
+  <!-- Specular highlight -->
+  <ellipse cx="196" cy="196" rx="58" ry="38" fill="white" opacity="0.05"
+           transform="rotate(-30 196 196)"/>
+</svg>

@@ -329,3 +329,9 @@ body, .glass, .glass-light, header, aside, footer {
 .light ::-webkit-scrollbar-thumb       { background: #CBD5E1; }
 .light ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
+
+/* ─── Search modal: bottom on desktop, top on real touch phones ─── */
+.search-modal { bottom: 110px; max-height: calc(100dvh - 140px); }
+@media (hover: none) and (pointer: coarse) {
+  .search-modal { top: 16px; bottom: auto; max-height: calc(100dvh - 32px); }
+}

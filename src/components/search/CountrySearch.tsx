@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, CSSProperties } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, MapPin } from "lucide-react";
 import { countryCentroids, CountryCentroid } from "@/lib/countries-geo";
 import { flagEmoji } from "@/lib/flag";
@@ -43,17 +43,9 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
   const [open, setOpen]               = useState(false);
   const [query, setQuery]             = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  // On touch devices anchor modal to top so virtual keyboard slides below input
-  const [modalPos, setModalPos]       = useState<CSSProperties>({ bottom: 110, maxHeight: "calc(100dvh - 140px)" });
   const inputRef    = useRef<HTMLInputElement>(null);
   const listRef     = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) {
-      setModalPos({ top: 16, maxHeight: "calc(100dvh - 32px)" });
-    }
-  }, []);
 
   // ─── Filter results ─────────────────────────────────────────────────────────
   const results = query.trim().length === 0
@@ -142,12 +134,11 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
             onClick={() => setOpen(false)}
           />
 
-          {/* Search panel */}
+          {/* Search panel — CSS media query moves it to top on touch devices */}
           <div
-            className="fixed left-1/2 -translate-x-1/2 z-[70]
+            className="search-modal fixed left-1/2 -translate-x-1/2 z-[70]
                        w-[520px] max-w-[calc(100vw-16px)]
                        animate-in fade-in duration-200"
-            style={modalPos}
             role="dialog"
             aria-modal="true"
             aria-label="Country search"

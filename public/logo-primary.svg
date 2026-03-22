@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Background radial gradient -->
+    <radialGradient id="bg" cx="50%" cy="44%" r="70%">
+      <stop offset="0%" stop-color="#182D40"/>
+      <stop offset="100%" stop-color="#0D1B2A"/>
+    </radialGradient>
+
+    <!-- Globe surface gradient — lit from upper-left -->
+    <radialGradient id="globeSurface" cx="36%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#1D4068"/>
+      <stop offset="40%"  stop-color="#102638"/>
+      <stop offset="100%" stop-color="#081220"/>
+    </radialGradient>
+
+    <!-- Atmosphere edge glow -->
+    <radialGradient id="atmo" cx="50%" cy="50%" r="50%">
+      <stop offset="75%"  stop-color="transparent"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.18"/>
+    </radialGradient>
+
+    <!-- Soft blur filter for glow halos -->
+    <filter id="halo" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+
+    <!-- Sharp+bloom filter for lines/ring -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Dot bloom -->
+    <filter id="dotGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip to globe circle -->
+    <clipPath id="gc">
+      <circle cx="256" cy="196" r="150"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── Background ── -->
+  <rect width="512" height="512" rx="18" fill="url(#bg)"/>
+
+  <!-- Stars scattered in corners -->
+  <g fill="white">
+    <circle cx="38"  cy="52"  r="1.1" opacity="0.65"/>
+    <circle cx="78"  cy="26"  r="0.8" opacity="0.50"/>
+    <circle cx="115" cy="65"  r="1.0" opacity="0.60"/>
+    <circle cx="55"  cy="108" r="0.7" opacity="0.40"/>
+    <circle cx="148" cy="36"  r="1.2" opacity="0.75"/>
+    <circle cx="22"  cy="155" r="0.9" opacity="0.50"/>
+    <circle cx="188" cy="20"  r="0.7" opacity="0.55"/>
+    <circle cx="32"  cy="348" r="0.9" opacity="0.45"/>
+    <circle cx="16"  cy="288" r="0.7" opacity="0.35"/>
+    <circle cx="58"  cy="420" r="1.0" opacity="0.50"/>
+    <circle cx="92"  cy="470" r="0.8" opacity="0.40"/>
+    <circle cx="425" cy="40"  r="1.1" opacity="0.65"/>
+    <circle cx="468" cy="68"  r="0.8" opacity="0.50"/>
+    <circle cx="490" cy="30"  r="1.0" opacity="0.55"/>
+    <circle cx="440" cy="118" r="0.7" opacity="0.40"/>
+    <circle cx="482" cy="145" r="1.2" opacity="0.70"/>
+    <circle cx="345" cy="25"  r="0.9" opacity="0.50"/>
+    <circle cx="460" cy="390" r="1.0" opacity="0.55"/>
+    <circle cx="494" cy="452" r="0.8" opacity="0.40"/>
+    <circle cx="448" cy="478" r="1.0" opacity="0.50"/>
+    <circle cx="385" cy="490" r="0.8" opacity="0.40"/>
+    <circle cx="308" cy="478" r="0.7" opacity="0.35"/>
+  </g>
+
+  <!-- ── Atmosphere halo (blurred ring behind globe) ── -->
+  <circle cx="256" cy="196" r="176" fill="none"
+          stroke="#F59E0B" stroke-width="28" opacity="0.14"
+          filter="url(#halo)"/>
+
+  <!-- ── Globe body ── -->
+  <circle cx="256" cy="196" r="150" fill="url(#globeSurface)"/>
+
+  <!-- Atmospheric edge gradient overlay -->
+  <circle cx="256" cy="196" r="150" fill="url(#atmo)"/>
+
+  <!-- ── Globe grid lines (clipped) ── -->
+  <g clip-path="url(#gc)">
+
+    <!-- Latitude: 60°S  cy=196+130=326  rx=75  ry=22 -->
+    <ellipse cx="256" cy="326" rx="75"  ry="22"
+             fill="none" stroke="#F59E0B" stroke-width="0.9" opacity="0.20"/>
+
+    <!-- Latitude: 30°S  cy=196+75=271   rx=130 ry=39 -->
+    <ellipse cx="256" cy="271" rx="130" ry="39"
+             fill="none" stroke="#F59E0B" stroke-width="1.2" opacity="0.30"/>
+
+    <!-- Equator              cy=196         rx=150 ry=45 -->
+    <ellipse cx="256" cy="196" rx="150" ry="45"
+             fill="none" stroke="#F59E0B" stroke-width="1.9" opacity="0.58"/>
+
+    <!-- Latitude: 30°N  cy=196-75=121   rx=130 ry=39 -->
+    <ellipse cx="256" cy="121" rx="130" ry="39"
+             fill="none" stroke="#F59E0B" stroke-width="1.2" opacity="0.30"/>
+
+    <!-- Latitude: 60°N  cy=196-130=66   rx=75  ry=22 -->
+    <ellipse cx="256" cy="66"  rx="75"  ry="22"
+             fill="none" stroke="#F59E0B" stroke-width="0.9" opacity="0.20"/>
+
+    <!-- Prime meridian (vertical line through poles) -->
+    <line x1="256" y1="46"  x2="256" y2="346"
+          stroke="#F59E0B" stroke-width="1.6" opacity="0.48"/>
+
+    <!-- 30° meridian  rx=75  ry=150 -->
+    <ellipse cx="256" cy="196" rx="75"  ry="150"
+             fill="none" stroke="#F59E0B" stroke-width="1.0" opacity="0.26"/>
+
+    <!-- 60° meridian  rx=130 ry=150 -->
+    <ellipse cx="256" cy="196" rx="130" ry="150"
+             fill="none" stroke="#F59E0B" stroke-width="1.0" opacity="0.20"/>
+  </g>
+
+  <!-- ── Data points (major cities / intel nodes) ── -->
+  <g clip-path="url(#gc)">
+    <!-- W Europe -->
+    <circle cx="272" cy="128" r="3.8" fill="#F59E0B" opacity="0.92" filter="url(#dotGlow)"/>
+    <!-- E Asia -->
+    <circle cx="344" cy="140" r="3.2" fill="#F59E0B" opacity="0.85" filter="url(#dotGlow)"/>
+    <!-- Mid East -->
+    <circle cx="306" cy="166" r="2.2" fill="#F59E0B" opacity="0.68"/>
+    <!-- E US -->
+    <circle cx="186" cy="148" r="2.8" fill="#F59E0B" opacity="0.75" filter="url(#dotGlow)"/>
+    <!-- S America -->
+    <circle cx="204" cy="248" r="2.0" fill="#F59E0B" opacity="0.55"/>
+
+    <!-- Thin connection lines between nodes -->
+    <line x1="186" y1="148" x2="272" y2="128"
+          stroke="#F59E0B" stroke-width="0.7" opacity="0.32"/>
+    <line x1="272" y1="128" x2="306" y2="166"
+          stroke="#F59E0B" stroke-width="0.7" opacity="0.32"/>
+    <line x1="306" y1="166" x2="344" y2="140"
+          stroke="#F59E0B" stroke-width="0.7" opacity="0.32"/>
+  </g>
+
+  <!-- ── Globe outer ring (amber glow) ── -->
+  <circle cx="256" cy="196" r="150" fill="none"
+          stroke="#F59E0B" stroke-width="2.5" opacity="0.88"
+          filter="url(#glow)"/>
+
+  <!-- Subtle specular highlight (upper-left) -->
+  <ellipse cx="206" cy="155" rx="46" ry="30" fill="white" opacity="0.045"
+           transform="rotate(-28 206 155)"/>
+
+  <!-- ── IQ badge (top-right of globe) ── -->
+  <text x="360" y="102"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="26" font-weight="700" fill="#F59E0B"
+        letter-spacing="2" opacity="0.95"
+        filter="url(#glow)">IQ</text>
+
+  <!-- Tiny circle accent behind IQ badge -->
+  <circle cx="376" cy="90" r="22" fill="none"
+          stroke="#F59E0B" stroke-width="1" opacity="0.28"/>
+
+  <!-- ── Wordmark ── -->
+  <text x="256" y="414"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="56" text-anchor="middle" letter-spacing="3">
+    <tspan fill="white"   font-weight="300">Globe</tspan><tspan fill="#F59E0B" font-weight="700" letter-spacing="1">IQ</tspan>
+  </text>
+
+  <!-- Separator rule -->
+  <line x1="148" y1="426" x2="364" y2="426"
+        stroke="#F59E0B" stroke-width="0.7" opacity="0.30"/>
+
+  <!-- Tagline -->
+  <text x="256" y="452"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="11" font-weight="400" fill="white" fill-opacity="0.40"
+        text-anchor="middle" letter-spacing="6">
+    WORLD INTELLIGENCE
+  </text>
+</svg>
