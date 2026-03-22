@@ -20,6 +20,7 @@ const TEX_NIGHT     = "https://unpkg.com/three-globe@2.34.1/example/img/earth-ni
 interface GlobeProps {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
+  flyToTarget?: CountryCentroid | null;
   zoomDelta: number;
   onZoomHandled: () => void;
   theme: "dark" | "light";
@@ -302,6 +303,47 @@ function ArrivalPulse({ position }: { position: [number, number, number] }) {
       <mesh ref={innerRef}>
         <ringGeometry args={[0.024, 0.036, 48]} />
         <meshBasicMaterial color="#FCD34D" transparent opacity={0.55}
+          side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// ─── Search beacon — repeating cyan pulse shown after search fly-to ──────────
+function SearchBeacon({ position }: { position: [number, number, number] }) {
+  const ring1 = useRef<THREE.Mesh>(null);
+  const ring2 = useRef<THREE.Mesh>(null);
+  const PERIOD = 1.6;
+
+  const normal = useMemo(() => new THREE.Vector3(...position).normalize(), [position]);
+  const quat   = useMemo(
+    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal),
+    [normal],
+  );
+
+  useFrame(({ clock }) => {
+    const t1 = (clock.getElapsedTime() % PERIOD) / PERIOD;
+    const t2 = ((clock.getElapsedTime() + PERIOD * 0.5) % PERIOD) / PERIOD;
+    if (ring1.current) {
+      ring1.current.scale.setScalar(1 + t1 * 3.2);
+      (ring1.current.material as THREE.MeshBasicMaterial).opacity = (1 - t1) * 0.72;
+    }
+    if (ring2.current) {
+      ring2.current.scale.setScalar(1 + t2 * 3.2);
+      (ring2.current.material as THREE.MeshBasicMaterial).opacity = (1 - t2) * 0.72;
+    }
+  });
+
+  return (
+    <group position={position} quaternion={quat}>
+      <mesh ref={ring1}>
+        <ringGeometry args={[0.038, 0.054, 48]} />
+        <meshBasicMaterial color="#22D3EE" transparent opacity={0.72}
+          side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={ring2}>
+        <ringGeometry args={[0.038, 0.054, 48]} />
+        <meshBasicMaterial color="#22D3EE" transparent opacity={0.72}
           side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
@@ -971,26 +1013,30 @@ const FLY_DURATION = 1.4; // seconds — slightly longer for smooth zoom+rotate 
 
 function CameraAnimator({
   selectedCountry,
+  flyToTarget,
   doubleClickTarget,
   onArrival,
 }: {
   selectedCountry: CountryCentroid | null;
+  flyToTarget?: CountryCentroid | null;
   doubleClickTarget: THREE.Vector3 | null;
   onArrival?: () => void;
 }) {
-  const { camera }   = useThree();
-  const flyStart     = useRef<THREE.Vector3 | null>(null);
-  const flyEnd       = useRef<THREE.Vector3 | null>(null);
-  const elapsed      = useRef(0);
-  const duration     = useRef(FLY_DURATION);
-  const isCountryFly = useRef(false);
-  const prevCode     = useRef<string | null>(null);
+  const { camera }      = useThree();
+  const flyStart        = useRef<THREE.Vector3 | null>(null);
+  const flyEnd          = useRef<THREE.Vector3 | null>(null);
+  const elapsed         = useRef(0);
+  const duration        = useRef(FLY_DURATION);
+  const isCountryFly    = useRef(false);
+  const prevCode        = useRef<string | null>(null);
+  const prevSearchCode  = useRef<string | null>(null);
 
   // Country selected → rotate + zoom in to ~2.1 units
   useEffect(() => {
     if (!selectedCountry) return;
     if (selectedCountry.code === prevCode.current) return;
-    prevCode.current = selectedCountry.code;
+    prevCode.current       = selectedCountry.code;
+    prevSearchCode.current = selectedCountry.code; // avoid double-fly if same code
 
     const [x, y, z] = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1);
     const dir = new THREE.Vector3(x, y, z).normalize();
@@ -1001,6 +1047,23 @@ function CameraAnimator({
     duration.current     = FLY_DURATION;
     isCountryFly.current = true;
   }, [selectedCountry, camera]);
+
+  // Search fly-to → rotate + gentle zoom to 2.6 (shows country in context, no panel)
+  useEffect(() => {
+    if (!flyToTarget) return;
+    if (flyToTarget.code === prevSearchCode.current) return;
+    prevSearchCode.current = flyToTarget.code;
+    prevCode.current       = null; // allow re-fly if user later clicks same country
+
+    const [x, y, z] = latLngToVector3(flyToTarget.lat, flyToTarget.lng, 1);
+    const dir = new THREE.Vector3(x, y, z).normalize();
+
+    flyStart.current     = camera.position.clone();
+    flyEnd.current       = dir.multiplyScalar(2.6);
+    elapsed.current      = 0;
+    duration.current     = FLY_DURATION;
+    isCountryFly.current = false; // no arrival pulse for search
+  }, [flyToTarget, camera]);
 
   // Double-click → zoom in toward clicked direction
   useEffect(() => {
@@ -1048,10 +1111,11 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
+  selectedCountry, flyToTarget, onCountrySelect, onInteractionStart, onHoverCountry,
   zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove,
 }: {
   selectedCountry: CountryCentroid | null;
+  flyToTarget?: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
@@ -1111,14 +1175,19 @@ function SceneRoot({
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
       <CameraAnimator
         selectedCountry={selectedCountry}
+        flyToTarget={flyToTarget}
         doubleClickTarget={dblClickTarget}
         onArrival={handleArrival}
       />
       <CameraTracker onCameraMove={onCameraMove} />
-      <AutoRotate enabled={!isInteracting && !selectedCountry} />
+      <AutoRotate enabled={!isInteracting && !selectedCountry && !flyToTarget} />
       {showArrivalPulse && selectedCountry && (() => {
         const pos = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1.004);
         return <ArrivalPulse key={arrivalPulseKey} position={pos} />;
+      })()}
+      {flyToTarget && flyToTarget.code !== selectedCountry?.code && (() => {
+        const pos = latLngToVector3(flyToTarget.lat, flyToTarget.lng, 1.004);
+        return <SearchBeacon position={pos} />;
       })()}
     </>
   );
@@ -1134,7 +1203,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -1163,6 +1232,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
         <Suspense fallback={<LoadingFallback />}>
           <SceneRoot
             selectedCountry={selectedCountry}
+            flyToTarget={flyToTarget}
             onCountrySelect={onCountrySelect}
             onInteractionStart={stopRotation}
             onHoverCountry={(c) => { setHoveredCountry(c); if (c) playHoverSound(); }}

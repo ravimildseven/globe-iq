@@ -43,9 +43,19 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
   const [open, setOpen]               = useState(false);
   const [query, setQuery]             = useState("");
   const [highlighted, setHighlighted] = useState(0);
+  const [isMobile, setIsMobile]       = useState(false);
   const inputRef    = useRef<HTMLInputElement>(null);
   const listRef     = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
+
+  // Track viewport width for modal positioning (top on mobile, bottom on desktop)
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const check = () => setIsMobile(mq.matches);
+    check();
+    mq.addEventListener("change", check);
+    return () => mq.removeEventListener("change", check);
+  }, []);
 
   // ─── Filter results ─────────────────────────────────────────────────────────
   const results = query.trim().length === 0
@@ -116,6 +126,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                    hover:shadow-[0_0_12px_rgba(245,158,11,0.15)] group"
       >
         <Search size={13} className="text-accent-amber/70 group-hover:text-accent-amber transition-colors" />
+        <span className="text-[11px] tracking-wide sm:hidden">Search</span>
         <span className="text-[11px] tracking-wide hidden sm:block">Search countries</span>
         <kbd className="hidden sm:flex items-center gap-0.5 ml-1 px-1.5 py-0.5
                         rounded-md text-[9px] font-mono text-text-muted/70 leading-none"
@@ -133,11 +144,12 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
             onClick={() => setOpen(false)}
           />
 
-          {/* Search panel */}
+          {/* Search panel — top on mobile (keyboard below), bottom on desktop */}
           <div
-            className="fixed bottom-[110px] left-1/2 -translate-x-1/2 z-[70]
-                       w-[520px] max-w-[calc(100vw-24px)]
-                       animate-in fade-in slide-in-from-bottom-2 duration-200"
+            className="fixed left-1/2 -translate-x-1/2 z-[70]
+                       w-[520px] max-w-[calc(100vw-16px)]
+                       animate-in fade-in duration-200"
+            style={isMobile ? { top: 16 } : { bottom: 110 }}
             role="dialog"
             aria-modal="true"
             aria-label="Country search"
@@ -167,6 +179,8 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                              caret-accent-amber"
                   autoComplete="off"
                   spellCheck={false}
+                  inputMode="search"
+                  enterKeyHint="go"
                 />
                 {query && (
                   <button
@@ -187,7 +201,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
               </div>
 
               {/* Results list */}
-              <div ref={listRef} className="max-h-[340px] overflow-y-auto overscroll-contain">
+              <div ref={listRef} className="max-h-[42vh] sm:max-h-[340px] overflow-y-auto overscroll-contain">
                 {results.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-10 text-center">
                     <MapPin size={20} className="text-text-muted/30" />
@@ -248,12 +262,12 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                 )}
               </div>
 
-              {/* Footer hint */}
+              {/* Footer hint — keyboard shortcuts hidden on mobile */}
               <div
                 className="flex items-center justify-between px-4 py-2.5"
                 style={{ borderTop: "1px solid var(--search-divider)" }}
               >
-                <div className="flex items-center gap-3 text-[10px] text-text-muted/50">
+                <div className="hidden sm:flex items-center gap-3 text-[10px] text-text-muted/50">
                   <span className="flex items-center gap-1">
                     <kbd className="px-1 py-0.5 rounded font-mono text-[9px]"
                          style={{ background: "var(--search-kbd-bg)", border: "1px solid var(--search-kbd-border)" }}>↑↓</kbd>
@@ -265,7 +279,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                     select
                   </span>
                 </div>
-                <span className="text-[10px] text-text-muted/30">
+                <span className="text-[10px] text-text-muted/30 sm:text-right w-full sm:w-auto text-center">
                   {results.length} result{results.length !== 1 ? "s" : ""}
                 </span>
               </div>

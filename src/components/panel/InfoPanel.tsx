@@ -140,7 +140,10 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         onClick={onClose}
       />
 
-      <aside className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card">
+      <aside className="panel-enter fixed right-0 top-0 h-[100dvh] sm:h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card">
+
+        {/* Safe-area spacer — iOS status bar pushes content down on mobile */}
+        <div className="sm:hidden flex-shrink-0" style={{ height: "env(safe-area-inset-top, 0px)" }} />
 
         {/* ── Hero section ── */}
         <div className="relative overflow-hidden flex-shrink-0" style={{ height: 170 }}>

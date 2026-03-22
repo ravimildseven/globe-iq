@@ -125,9 +125,13 @@ function timezoneHex(offset: number): string {
 
 export default function Home() {
   const { resolvedTheme } = useTheme();
-  const globeTheme = resolvedTheme === "light" ? "light" : "dark";
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
+  // Use "dark" on SSR; swap to real theme only after client hydration
+  const globeTheme = themeMounted && resolvedTheme === "light" ? "light" : "dark";
 
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
+  const [flyToTarget, setFlyToTarget]         = useState<CountryCentroid | null>(null);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [marketData, setMarketData] = useState<MarketData>({});
   const [recentCountries, setRecentCountries] = useState<CountryCentroid[]>([]);
@@ -233,12 +237,18 @@ export default function Home() {
 
   const handleCountrySelect = useCallback((country: CountryCentroid) => {
     playSelectSound();
+    setFlyToTarget(null);         // clear search beacon
     setSelectedCountry(country);
     setRecentCountries(prev => {
       const next = [country, ...prev.filter(c => c.code !== country.code)].slice(0, 5);
       try { localStorage.setItem("globe-iq:recent", JSON.stringify(next.map(c => c.code))); } catch { /* ignore */ }
       return next;
     });
+  }, []);
+
+  // Search → fly only; no panel, no sound. User clicks the country to open details.
+  const handleSearchFly = useCallback((country: CountryCentroid) => {
+    setFlyToTarget(country);
   }, []);
 
   const handleRandomCountry = useCallback(() => {
@@ -249,6 +259,7 @@ export default function Home() {
   const handleClose = useCallback(() => {
     playDeselectSound();
     setSelectedCountry(null);
+    setFlyToTarget(null);
   }, []);
 
   const handleZoomHandled = useCallback(() => {
@@ -360,6 +371,7 @@ export default function Home() {
         <Globe
           selectedCountry={selectedCountry}
           onCountrySelect={handleCountrySelect}
+          flyToTarget={flyToTarget}
           zoomDelta={zoomDelta}
           onZoomHandled={handleZoomHandled}
           theme={globeTheme}
@@ -429,7 +441,7 @@ export default function Home() {
 
         {/* Search pill + random-country button */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <CountrySearch onSelect={handleCountrySelect} />
+          <CountrySearch onSelect={handleSearchFly} />
           <button
             onClick={handleRandomCountry}
             title="Explore a random country"
