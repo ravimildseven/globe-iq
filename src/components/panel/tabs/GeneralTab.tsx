@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { CountryInfo } from "@/lib/types";
-import { Users, MapPin, Ruler, Coins, Languages, Globe2, Sun, Moon, Clock } from "lucide-react";
+import { Users, MapPin, Ruler, Coins, Languages, Globe2, Sun, Moon, Clock, Lightbulb } from "lucide-react";
 import {
   getCountryTimezone,
   formatLocalTime,
   getDayNight,
   getZoneCity,
 } from "@/lib/country-timezones";
+import { getTopPlaces } from "@/lib/top-places";
 
 /* ── Formatting helpers ── */
 function fmt(n: number) {
@@ -16,6 +17,17 @@ function fmt(n: number) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
   if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
   return n.toString();
+}
+
+/* ── Extract first ~2 sentences from Wikipedia summary ── */
+function shortExtract(text: string): string {
+  if (!text) return "";
+  const first = text.indexOf(". ");
+  if (first === -1) return text.length > 280 ? text.slice(0, 277) + "…" : text;
+  const second = text.indexOf(". ", first + 2);
+  const cutoff = second !== -1 && second < 480 ? second + 1 : first + 1;
+  const snippet = text.slice(0, cutoff);
+  return snippet.length > 320 ? snippet.slice(0, 317) + "…" : snippet;
 }
 
 /* ── Live clock widget ────────────────────────────────────── */
@@ -105,6 +117,36 @@ function LocalClock({ countryCode }: { countryCode: string }) {
   );
 }
 
+/* ── Top Places chips ─────────────────────────────────────── */
+function TopPlaces({ countryCode }: { countryCode: string }) {
+  const places = getTopPlaces(countryCode);
+  if (places.length === 0) return null;
+
+  return (
+    <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <MapPin size={13} className="text-accent-red" />
+        <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+          Top Places
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {places.map(place => (
+          <span
+            key={place}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-full
+                       bg-bg-elevated text-text-secondary border border-border-subtle
+                       hover:border-accent-amber/30 hover:text-text-primary transition-colors cursor-default"
+          >
+            <span className="w-1 h-1 rounded-full bg-accent-amber/50 flex-shrink-0 inline-block" />
+            {place}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Stat card ────────────────────────────────────────────── */
 function StatCard({ icon, label, value, accent = false }: {
   icon: React.ReactNode;
@@ -127,6 +169,28 @@ function StatCard({ icon, label, value, accent = false }: {
   );
 }
 
+/* ── "Did you know?" card ─────────────────────────────────── */
+function DidYouKnow({ extract }: { extract: string }) {
+  const snippet = shortExtract(extract);
+  if (!snippet) return null;
+
+  return (
+    <div className="bg-accent-amber/5 border border-accent-amber/20 rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2.5">
+        <Lightbulb size={13} className="text-accent-amber" />
+        <span className="text-[10px] text-accent-amber/90 uppercase tracking-widest font-semibold">
+          Did you know?
+        </span>
+      </div>
+      <p className="text-xs text-text-secondary leading-relaxed">{snippet}</p>
+      <p className="text-[9px] text-text-muted/60 mt-2 flex items-center gap-1">
+        <Globe2 size={9} />
+        Source: Wikipedia
+      </p>
+    </div>
+  );
+}
+
 /* ── Skeleton ─────────────────────────────────────────────── */
 function Skeletons() {
   return (
@@ -135,6 +199,15 @@ function Skeletons() {
       <div className="rounded-xl p-4 bg-bg-card border border-border-subtle">
         <div className="skeleton h-2.5 w-20 rounded mb-3" />
         <div className="skeleton h-8 w-36 rounded" />
+      </div>
+      {/* Top places skeleton */}
+      <div className="rounded-xl p-4 bg-bg-card border border-border-subtle">
+        <div className="skeleton h-2.5 w-16 rounded mb-3" />
+        <div className="flex flex-wrap gap-1.5">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton h-6 w-24 rounded-full" />
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         {[...Array(4)].map((_, i) => (
@@ -152,9 +225,11 @@ function Skeletons() {
 export default function GeneralTab({
   info,
   loading,
+  wikiExtract = "",
 }: {
   info: CountryInfo | null;
   loading: boolean;
+  wikiExtract?: string;
 }) {
   if (loading || !info) return <Skeletons />;
 
@@ -163,6 +238,9 @@ export default function GeneralTab({
 
       {/* ── Live local clock ── */}
       <LocalClock countryCode={info.code} />
+
+      {/* ── Top Places ── */}
+      <TopPlaces countryCode={info.code} />
 
       {/* ── KPI grid ── */}
       <div className="grid grid-cols-2 gap-2.5">
@@ -215,6 +293,9 @@ export default function GeneralTab({
           </div>
         </div>
       )}
+
+      {/* ── Did you know? ── */}
+      <DidYouKnow extract={wikiExtract} />
 
       {/* ── Source badge ── */}
       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent-indigo/5 border border-accent-indigo/15">

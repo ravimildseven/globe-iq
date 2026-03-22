@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight } from "lucide-react";
+import {
+  X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight,
+  Users, Building2, Ruler, Languages,
+} from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
 import { TabId, CountryInfo } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
@@ -18,11 +21,24 @@ interface InfoPanelProps {
 }
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "general",   label: "Overview",  icon: <Globe2 size={14} /> },
-  { id: "news",      label: "News",      icon: <Newspaper size={14} /> },
+  { id: "general",   label: "Overview",  icon: <Globe2     size={14} /> },
+  { id: "news",      label: "News",      icon: <Newspaper  size={14} /> },
   { id: "economy",   label: "Economy",   icon: <TrendingUp size={14} /> },
-  { id: "conflicts", label: "Conflicts", icon: <Swords size={14} /> },
+  { id: "conflicts", label: "Conflicts", icon: <Swords     size={14} /> },
 ];
+
+/* ── Number formatters ── */
+function fmtPop(n: number): string {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return Math.round(n / 1e3) + "K";
+  return n.toString();
+}
+function fmtArea(n: number): string {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return Math.round(n / 1e3) + "K";
+  return n.toLocaleString();
+}
 
 export default function InfoPanel({ country, onClose, marketData }: InfoPanelProps) {
   const [activeTab, setActiveTab]       = useState<TabId>("general");
@@ -31,7 +47,29 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
   const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
-  /* ── Fetch country facts ── */
+  /* ── Wikipedia: hero image + extract ── */
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [heroLoaded, setHeroLoaded]     = useState(false);
+  const [wikiExtract, setWikiExtract]   = useState("");
+
+  useEffect(() => {
+    setHeroImageUrl("");
+    setHeroLoaded(false);
+    setWikiExtract("");
+
+    const title = encodeURIComponent(country.name.replace(/ /g, "_"));
+    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const imgUrl = data.thumbnail?.source ?? "";
+        if (imgUrl) setHeroImageUrl(imgUrl);
+        if (data.extract) setWikiExtract(data.extract);
+      })
+      .catch(() => {});
+  }, [country]);
+
+  /* ── Fetch country facts from REST Countries ── */
   useEffect(() => {
     setLoadingInfo(true);
     setCountryInfo(null);
@@ -92,6 +130,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
   }, [activeTab]);
 
   const hasConflicts = (conflictsDatabase[country.code]?.length ?? 0) > 0;
+  const showPhoto    = heroImageUrl && heroLoaded;
 
   return (
     <>
@@ -103,22 +142,45 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
 
       <aside className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card">
 
-        {/* ── Gradient hero header ── */}
-        <div className="relative overflow-hidden flex-shrink-0" style={{ minHeight: 120 }}>
-          {/* BG gradient */}
+        {/* ── Hero section ── */}
+        <div className="relative overflow-hidden flex-shrink-0" style={{ height: 170 }}>
+
+          {/* Base gradient — always rendered */}
           <div
             className="absolute inset-0"
             style={{
               background: "linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-elevated) 60%, var(--color-bg-card) 100%)",
             }}
           />
-          {/* Accent glow top edge */}
+
+          {/* Accent top edge */}
           <div
             className="absolute top-0 left-0 right-0 h-px"
             style={{ background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)" }}
           />
-          {/* Flag blurred backdrop */}
-          {countryInfo?.flagUrl && (
+
+          {/* Hero photo */}
+          {heroImageUrl && (
+            <img
+              src={heroImageUrl}
+              alt=""
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-700 ${heroLoaded ? "opacity-100" : "opacity-0"}`}
+              onLoad={() => setHeroLoaded(true)}
+              onError={() => setHeroImageUrl("")}
+              draggable={false}
+            />
+          )}
+
+          {/* Photo gradient overlay — ensures bottom text is readable */}
+          {showPhoto && (
+            <div
+              className="absolute inset-0"
+              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.38) 55%, transparent 100%)" }}
+            />
+          )}
+
+          {/* Flag blurred backdrop (only when no photo) */}
+          {!showPhoto && countryInfo?.flagUrl && (
             <img
               src={countryInfo.flagUrl}
               alt=""
@@ -127,66 +189,97 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
             />
           )}
 
-          {/* Content */}
-          <div className="relative px-5 pt-5 pb-4 flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              {/* Flag + emoji */}
-              <div className="relative flex-shrink-0">
-                {countryInfo?.flagUrl ? (
-                  <img
-                    src={countryInfo.flagUrl}
-                    alt={`${countryInfo.name} flag`}
-                    className="w-14 h-10 rounded-md object-cover shadow-lg border border-border"
-                  />
-                ) : (
-                  <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
-                    {countryInfo?.flag || "🌍"}
-                  </div>
-                )}
-              </div>
+          {/* Close button — always top-right */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-4 z-10 w-8 h-8 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
 
-              {/* Name + meta */}
-              <div>
-                <h2 className="text-lg font-bold text-text-primary leading-tight">
-                  {loadingInfo ? (
-                    <span className="skeleton inline-block w-32 h-5 rounded" />
-                  ) : (
-                    countryInfo?.name || country.name
-                  )}
-                </h2>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  {loadingInfo ? (
-                    <span className="skeleton inline-block w-24 h-3.5 rounded" />
-                  ) : (
+          {/* Country info — anchored to bottom of hero */}
+          <div className="absolute bottom-0 inset-x-0 px-5 pb-4 pt-10 flex items-end gap-3">
+            {/* Flag */}
+            <div className="flex-shrink-0">
+              {countryInfo?.flagUrl ? (
+                <img
+                  src={countryInfo.flagUrl}
+                  alt={`${countryInfo.name} flag`}
+                  className={`w-14 h-10 rounded-md object-cover shadow-lg ${
+                    showPhoto ? "border border-white/25" : "border border-border"
+                  }`}
+                />
+              ) : (
+                <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
+                  {countryInfo?.flag || "🌍"}
+                </div>
+              )}
+            </div>
+
+            {/* Name + meta */}
+            <div className="min-w-0">
+              <h2 className={`text-lg font-bold leading-tight drop-shadow-sm truncate ${showPhoto ? "text-white" : "text-text-primary"}`}>
+                {loadingInfo
+                  ? <span className="skeleton inline-block w-32 h-5 rounded" />
+                  : countryInfo?.name || country.name}
+              </h2>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {loadingInfo
+                  ? <span className="skeleton inline-block w-24 h-3.5 rounded" />
+                  : (
                     <>
-                      <span className="text-xs text-text-muted">{countryInfo?.capital}</span>
+                      <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
+                        {countryInfo?.capital}
+                      </span>
                       {countryInfo?.region && (
                         <>
-                          <ChevronRight size={10} className="text-text-muted/40" />
-                          <span className="text-xs text-text-muted">{countryInfo.region}</span>
+                          <ChevronRight size={10} className={showPhoto ? "text-white/35" : "text-text-muted/40"} />
+                          <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
+                            {countryInfo.region}
+                          </span>
                         </>
                       )}
                     </>
                   )}
-                </div>
               </div>
             </div>
-
-            {/* Close */}
-            <button
-              onClick={onClose}
-              className="flex-shrink-0 w-8 h-8 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
-              aria-label="Close"
-            >
-              <X size={16} />
-            </button>
           </div>
         </div>
 
-        {/* ── Tabs (pill style) ── */}
+        {/* ── Quick Facts ribbon ── */}
+        {countryInfo && !loadingInfo ? (
+          <div className="flex items-stretch border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle flex-shrink-0">
+            {[
+              { icon: <Users     size={11} />, label: "Pop.",     value: fmtPop(countryInfo.population) },
+              { icon: <Ruler     size={11} />, label: "Area km²", value: fmtArea(countryInfo.area) },
+              { icon: <Building2 size={11} />, label: "Capital",  value: countryInfo.capital },
+              { icon: <Languages size={11} />, label: "Language", value: countryInfo.languages[0] || "N/A" },
+            ].map(item => (
+              <div key={item.label} className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5 min-w-0">
+                <span className="text-accent-cyan/70">{item.icon}</span>
+                <span className="text-[8px] text-text-muted uppercase tracking-wide leading-none">{item.label}</span>
+                <span className="text-[10px] font-semibold text-text-primary truncate w-full text-center px-0.5 leading-tight">
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Ribbon skeleton */
+          <div className="flex border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle flex-shrink-0">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex-1 py-3 flex flex-col items-center gap-1.5">
+                <div className="skeleton h-2 w-6 rounded" />
+                <div className="skeleton h-3 w-10 rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Tabs ── */}
         <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0">
           <div className="flex gap-1 relative">
-            {/* Background indicator pill */}
             <div
               className="tab-indicator absolute top-0.5 bottom-0.5 bg-bg-elevated rounded-lg"
               style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
@@ -217,7 +310,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
           className="flex-1 overflow-y-auto px-4 py-4"
           style={{ background: "linear-gradient(180deg, var(--color-bg-card) 0%, var(--color-bg-primary) 100%)" }}
         >
-          {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
+          {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} wikiExtract={wikiExtract} />}
           {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
           {activeTab === "economy"   && <EconomyTab    countryCode={country.code} countryName={country.name} marketQuote={marketData?.[country.code]} />}
           {activeTab === "conflicts" && <ConflictsTab  countryCode={country.code} countryName={country.name} />}
