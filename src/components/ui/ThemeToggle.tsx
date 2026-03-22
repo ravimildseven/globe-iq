@@ -42,10 +42,8 @@ export default function ThemeToggle() {
       title={`${LABELS[current]} theme — click for ${LABELS[next]}`}
       className="flex items-center gap-1.5 glass rounded-full px-2.5 py-1.5
                  text-text-muted hover:text-text-primary transition-all duration-200
-                 border border-white/8 hover:border-accent-amber/30
-                 hover:shadow-[0_0_12px_rgba(245,158,11,0.15)]
-                 dark:border-white/8 dark:hover:border-accent-amber/30
-                 light:border-black/8 light:hover:border-accent-amber/40"
+                 hover:border-accent-amber/30
+                 hover:shadow-[0_0_12px_rgba(245,158,11,0.15)]"
     >
       <span className="text-accent-amber/80 transition-colors">
         {ICONS[current]}

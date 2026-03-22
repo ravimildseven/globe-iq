@@ -101,7 +101,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         onClick={onClose}
       />
 
-      <aside className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col">
+      <aside className="panel-enter fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card">
 
         {/* ── Gradient hero header ── */}
         <div className="relative overflow-hidden flex-shrink-0" style={{ minHeight: 120 }}>

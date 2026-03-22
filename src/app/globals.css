@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  /* ─── Deep Space Palette (UI/UX Pro Max: OLED Dark + World Clock) ─── */
-  --color-bg-primary:  #020617;   /* Space black */
-  --color-bg-card:     #0B1120;   /* Elevated card */
-  --color-bg-elevated: #141B2D;   /* Hover/elevated surface */
-  --color-bg-hover:    #1C2540;
+  /* ─── Dark theme defaults (deep space / OLED black) ─── */
+  --color-bg-primary:  #020617;   /* Space black            */
+  --color-bg-card:     #0D1B2A;   /* Deep navy card         */
+  --color-bg-elevated: #152236;   /* Elevated surface       */
+  --color-bg-hover:    #1C2E44;   /* Hover state            */
 
-  --color-text-primary:   #F0F4FF;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted:     #4E5D75;
+  --color-text-primary:   #F8FAFC;   /* Clean white   */
+  --color-text-secondary: #94A3B8;   /* Slate-400     */
+  --color-text-muted:     #64748B;   /* Slate-500     */
 
   --color-border:        #1E2D45;
-  --color-border-subtle: #111827;
+  --color-border-subtle: #0F1B2D;
 
-  /* ─── Accent system (amber primary, indigo secondary) ─── */
+  /* ─── Accent system ─── */
   --color-accent-amber:  #F59E0B;
   --color-accent-gold:   #FBBF24;
   --color-accent-blue:   #3B82F6;
@@ -24,31 +24,39 @@
   --color-accent-red:    #EF4444;
   --color-accent-purple: #A855F7;
 
-  /* ─── HUD glow variants ─── */
-  --color-hud-glow:   rgba(245, 158, 11, 0.12);
-  --color-hud-border: rgba(245, 158, 11, 0.35);
+  /* ─── HUD glow ─── */
+  --color-hud-glow:      rgba(245, 158, 11, 0.12);
+  --color-hud-border:    rgba(245, 158, 11, 0.35);
   --color-hud-glow-blue: rgba(59, 130, 246, 0.15);
 
-  /* ─── Typography (Tech Startup: Space Grotesk + DM Sans) ─── */
+  /* ─── Typography ─── */
   --font-heading: 'Space Grotesk', sans-serif;
   --font-body:    'DM Sans', sans-serif;
 
-  /* ─── Easing (UI/UX Pro Max: bezier(0.16, 1, 0.3, 1)) ─── */
+  /* ─── Easing ─── */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─── Search modal tokens (dark defaults) ───────────────── */
+/* ─── Dark search / label tokens (default) ─── */
 :root {
-  --search-bg:         rgba(4, 10, 24, 0.96);
-  --search-border:     rgba(180, 210, 255, 0.12);
+  --search-bg:         rgba(13, 27, 42, 0.97);
+  --search-border:     rgba(255, 255, 255, 0.10);
   --search-shadow:     0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.06);
-  --search-divider:    rgba(180, 210, 255, 0.08);
+  --search-divider:    rgba(255, 255, 255, 0.07);
   --search-kbd-bg:     rgba(255, 255, 255, 0.05);
   --search-kbd-border: rgba(255, 255, 255, 0.10);
+
+  /* Globe label defaults (dark) */
+  --globe-label-bg:       rgba(4, 10, 24, 0.75);
+  --globe-label-border:   rgba(180, 210, 255, 0.10);
+  --globe-label-text:     rgba(200, 220, 255, 0.80);
+  --globe-tooltip-bg:     rgba(8, 14, 28, 0.92);
+  --globe-tooltip-border: rgba(255, 255, 255, 0.13);
+  --globe-tooltip-text:   #E8F0FF;
 }
 
-/* ─── Base ─────────────────────────────────────────────── */
+/* ─── Base ─── */
 * { box-sizing: border-box; }
 
 body {
@@ -59,24 +67,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-}
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
 
-/* ─── Scrollbar ─────────────────────────────────────────── */
+/* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
-}
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 
-/* ─── Globe canvas ──────────────────────────────────────── */
+/* ─── Globe canvas ─── */
 canvas { cursor: grab; }
 canvas:active { cursor: grabbing; }
 
-/* ─── Starfield ─────────────────────────────────────────── */
+/* ─── Starfield ─── */
 @keyframes twinkle {
   0%, 100% { opacity: 0.2; }
   50%       { opacity: 1; }
@@ -89,7 +92,7 @@ canvas:active { cursor: grabbing; }
   animation-delay: var(--delay, 0s);
 }
 
-/* ─── Ambient blobs ─────────────────────────────────────── */
+/* ─── Ambient blobs ─── */
 @keyframes blob-drift {
   0%   { transform: translate(0, 0) scale(1); }
   33%  { transform: translate(30px, -20px) scale(1.05); }
@@ -105,21 +108,21 @@ canvas:active { cursor: grabbing; }
   pointer-events: none;
 }
 
-/* ─── Glassmorphism utility ─────────────────────────────── */
+/* ─── Glassmorphism ─── */
 .glass {
-  background: rgba(11, 17, 32, 0.75);
+  background: rgba(13, 27, 42, 0.80);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 .glass-light {
-  background: rgba(20, 27, 45, 0.65);
+  background: rgba(21, 34, 54, 0.70);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ─── Glow effects ──────────────────────────────────────── */
+/* ─── Glow effects ─── */
 .glow-amber {
   box-shadow: 0 0 0 1px var(--color-hud-border),
               0 0 24px var(--color-hud-glow),
@@ -130,41 +133,35 @@ canvas:active { cursor: grabbing; }
               0 0 20px var(--color-hud-glow-blue);
 }
 .card-glow {
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.04),
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.05),
               0 4px 24px rgba(0,0,0,0.5);
 }
 
-/* ─── Tab indicator (sliding pill) ─────────────────────── */
+/* ─── Tab indicator ─── */
 .tab-indicator {
   transition: left 0.35s var(--ease-spring), width 0.35s var(--ease-spring);
 }
 
-/* ─── Panel slide in ────────────────────────────────────── */
-.panel-enter {
-  animation: panelSlideIn 0.45s var(--ease-spring);
-}
+/* ─── Panel slide-in ─── */
+.panel-enter { animation: panelSlideIn 0.45s var(--ease-spring); }
 @keyframes panelSlideIn {
   from { opacity: 0; transform: translateX(48px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ─── Panel overlay fade ────────────────────────────────── */
-.overlay-enter {
-  animation: overlayFade 0.3s ease;
-}
+/* ─── Panel overlay fade ─── */
+.overlay-enter { animation: overlayFade 0.3s ease; }
 @keyframes overlayFade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-/* ─── Pulse live dot ────────────────────────────────────── */
+/* ─── Pulse live dot ─── */
 @keyframes pulse-ring {
   0%   { transform: scale(1); opacity: 0.8; }
   100% { transform: scale(2.2); opacity: 0; }
 }
-.pulse-dot {
-  position: relative;
-}
+.pulse-dot { position: relative; }
 .pulse-dot::before {
   content: '';
   position: absolute;
@@ -174,10 +171,10 @@ canvas:active { cursor: grabbing; }
   animation: pulse-ring 1.8s ease-out infinite;
 }
 
-/* ─── Shimmer skeleton ──────────────────────────────────── */
+/* ─── Shimmer skeleton ─── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  100% { background-position:  400px 0; }
 }
 .skeleton {
   background: linear-gradient(90deg,
@@ -189,144 +186,22 @@ canvas:active { cursor: grabbing; }
   animation: shimmer 1.6s infinite;
 }
 
-/* ─── Country hint pop ──────────────────────────────────── */
+/* ─── Country hint pop ─── */
 @keyframes hintPop {
   0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-.hint-pop {
-  animation: hintPop 0.5s var(--ease-spring);
-}
+.hint-pop { animation: hintPop 0.5s var(--ease-spring); }
 
-/* ─── Zoom button press ─────────────────────────────────── */
-.zoom-btn:active {
-  transform: scale(0.92);
-}
-.zoom-btn {
-  transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease;
-}
+/* ─── Zoom button ─── */
+.zoom-btn:active { transform: scale(0.92); }
+.zoom-btn { transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease; }
 
-/* ─── Scrollbar hide ────────────────────────────────────── */
+/* ─── Scrollbar hide ─── */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ═══════════════════════════════════════════════════════════
-   LIGHT THEME — "Clear Day Atlas"
-   Rich atmospheric sky-blue base, crisp white cards, deep
-   navy text. Amber accent = golden sun feel. NOT flat white.
-   ═══════════════════════════════════════════════════════════ */
-.light {
-  /* ── Sky-atmosphere background system ── */
-  --color-bg-primary:     #8DBAD4;   /* Deep horizon sky   */
-  --color-bg-card:        #FFFFFF;   /* Crisp white card   */
-  --color-bg-elevated:    #D4ECF7;   /* Soft cloud surface */
-  --color-bg-hover:       #BCE0F4;   /* Sky hover          */
-
-  /* ── Deep-navy text — high contrast on white cards ── */
-  --color-text-primary:   #0B1929;
-  --color-text-secondary: #1D3A56;
-  --color-text-muted:     #3D6E90;
-
-  /* ── Blue-tinted borders — visible on white ── */
-  --color-border:         #5E9DC0;
-  --color-border-subtle:  #A4CCE0;
-
-  /* ── Amber accent unchanged ── */
-  --color-hud-glow:       rgba(245, 158, 11, 0.18);
-  --color-hud-border:     rgba(245, 158, 11, 0.55);
-  --color-hud-glow-blue:  rgba(59, 130, 246, 0.18);
-
-  /* ── Globe labels — dark ink on frosted white ── */
-  --globe-label-bg:       rgba(255, 255, 255, 0.88);
-  --globe-label-border:   rgba(11, 25, 41, 0.14);
-  --globe-label-text:     rgba(11, 25, 41, 0.88);
-  --globe-tooltip-bg:     rgba(255, 255, 255, 0.97);
-  --globe-tooltip-border: rgba(11, 25, 41, 0.13);
-  --globe-tooltip-text:   #0B1929;
-
-  /* ── Search modal — white frosted panel ── */
-  --search-bg:             rgba(255, 255, 255, 0.97);
-  --search-border:         rgba(11, 25, 41, 0.14);
-  --search-shadow:         0 24px 60px rgba(0, 40, 100, 0.28), 0 0 0 1px rgba(245,158,11,0.10);
-  --search-divider:        rgba(11, 25, 41, 0.09);
-  --search-kbd-bg:         rgba(11, 25, 41, 0.07);
-  --search-kbd-border:     rgba(11, 25, 41, 0.15);
-}
-
-/* Sky gradient on full-viewport background */
-.light body,
-.light main {
-  background: linear-gradient(
-    150deg,
-    #6DA4C4 0%,
-    #8EC4DE 35%,
-    #7AB8D8 65%,
-    #6AA4C4 100%
-  );
-}
-
-/* Glass — crisp frosted white with sky-tinted shadow */
-.light .glass {
-  background:              rgba(255, 255, 255, 0.84);
-  backdrop-filter:         blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.70);
-  box-shadow: 0 2px 20px rgba(0, 40, 80, 0.10);
-}
-.light .glass-light {
-  background:              rgba(255, 255, 255, 0.68);
-  backdrop-filter:         blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-}
-
-/* Glow — golden sun feel */
-.light .glow-amber {
-  box-shadow: 0 0 0 1px var(--color-hud-border),
-              0 0 20px rgba(245, 158, 11, 0.20),
-              0 4px 16px rgba(0, 40, 80, 0.10);
-}
-
-/* Card depth — blue-tinted shadow on white */
-.light .card-glow {
-  box-shadow: 0 0 0 1px rgba(122, 173, 200, 0.22),
-              0 4px 24px rgba(0, 50, 100, 0.08);
-}
-
-/* Info panel — shadow to float over the sky background */
-.light aside {
-  box-shadow: -4px 0 40px rgba(0, 40, 100, 0.14);
-}
-
-/* Skeleton shimmer — sky tones */
-.light .skeleton {
-  background: linear-gradient(90deg,
-    #D8EDF8 25%,
-    #EAF5FD 50%,
-    #D8EDF8 75%
-  );
-  background-size: 800px 100%;
-}
-
-/* Stars + blobs hidden — sky gradient provides all depth */
-.light .star { display: none; }
-.light .blob { display: none; }
-
-/* HUD scan lines look bad on sky background — disable */
-.light .hud-scan::after { display: none; }
-
-/* Scrollbar — sky tones */
-.light ::-webkit-scrollbar-thumb        { background: #7AADC8; }
-.light ::-webkit-scrollbar-thumb:hover  { background: #4B7A9E; }
-
-/* Smooth theme transition on surfaces (not on canvas) */
-body, .glass, .glass-light, header, aside, footer {
-  transition: background-color 0.3s var(--ease-smooth),
-              border-color 0.3s var(--ease-smooth),
-              color 0.3s var(--ease-smooth);
-}
-
-/* ─── HUD scan line (subtle, decorative) ───────────────── */
+/* ─── HUD scan line (dark mode only) ─── */
 .hud-scan::after {
   content: '';
   position: absolute;
@@ -335,9 +210,122 @@ body, .glass, .glass-light, header, aside, footer {
     0deg,
     transparent,
     transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
+    rgba(0, 0, 0, 0.025) 2px,
+    rgba(0, 0, 0, 0.025) 4px
   );
   pointer-events: none;
-  border-radius: inherit;
 }
+
+/* ─── Smooth theme transitions (surfaces only, not canvas) ─── */
+body, .glass, .glass-light, header, aside, footer {
+  transition: background-color 0.3s var(--ease-smooth),
+              border-color 0.3s var(--ease-smooth),
+              box-shadow 0.3s var(--ease-smooth),
+              color 0.3s var(--ease-smooth);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME — "Google Earth / Apple Maps"
+   Warm off-white canvas, white cards with soft drop shadows,
+   dark slate text. Every element passes WCAG AA contrast.
+   ═══════════════════════════════════════════════════════════════════ */
+.light {
+  /* ─── Backgrounds ─── */
+  --color-bg-primary:  #EFF3F8;   /* Warm off-white — not pure white   */
+  --color-bg-card:     #FFFFFF;   /* White cards                       */
+  --color-bg-elevated: #F8FAFC;   /* Hair-thin elevation over card     */
+  --color-bg-hover:    #EEF2FF;   /* Soft indigo tint on hover         */
+
+  /* ─── Text — AA on white cards AND #EFF3F8 background ─── */
+  --color-text-primary:   #1E293B;   /* Slate-800 — 15:1 on white  */
+  --color-text-secondary: #334155;   /* Slate-700 — 11:1 on white  */
+  --color-text-muted:     #64748B;   /* Slate-500 — 4.6:1 on white */
+
+  /* ─── Borders — ink-tinted ─── */
+  --color-border:        rgba(15, 23, 42, 0.10);
+  --color-border-subtle: rgba(15, 23, 42, 0.06);
+
+  /* ─── Amber accent — slightly more opaque ring for white surfaces ─── */
+  --color-hud-glow:       rgba(245, 158, 11, 0.15);
+  --color-hud-border:     rgba(245, 158, 11, 0.55);
+  --color-hud-glow-blue:  rgba(59, 130, 246, 0.15);
+
+  /* ─── Globe labels — dark ink on frosted white ─── */
+  --globe-label-bg:       rgba(255, 255, 255, 0.92);
+  --globe-label-border:   rgba(15, 23, 42, 0.12);
+  --globe-label-text:     rgba(30, 41, 59, 0.90);
+  --globe-tooltip-bg:     rgba(255, 255, 255, 0.98);
+  --globe-tooltip-border: rgba(15, 23, 42, 0.10);
+  --globe-tooltip-text:   #1E293B;
+
+  /* ─── Search modal — near-solid white ─── */
+  --search-bg:         rgba(255, 255, 255, 0.99);
+  --search-border:     rgba(15, 23, 42, 0.10);
+  --search-shadow:     0 20px 50px rgba(15, 23, 42, 0.14),
+                       0 4px 12px rgba(15, 23, 42, 0.08),
+                       0 0 0 1px rgba(245, 158, 11, 0.07);
+  --search-divider:    rgba(15, 23, 42, 0.07);
+  --search-kbd-bg:     rgba(15, 23, 42, 0.05);
+  --search-kbd-border: rgba(15, 23, 42, 0.10);
+}
+
+/* ─── Light: plain off-white page background ─── */
+.light body,
+.light main {
+  background: #EFF3F8;
+}
+
+/* ─── Light: glass = white card with drop shadow (no dark blur) ─── */
+.light .glass {
+  background:              rgba(255, 255, 255, 0.92);
+  backdrop-filter:         blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.07),
+              0 4px 20px rgba(15, 23, 42, 0.05);
+}
+.light .glass-light {
+  background:              rgba(255, 255, 255, 0.78);
+  backdrop-filter:         blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+/* ─── Light: amber glow adapted for white surfaces ─── */
+.light .glow-amber {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.45),
+              0 0 16px rgba(245, 158, 11, 0.12),
+              0 2px 10px rgba(15, 23, 42, 0.08);
+}
+
+/* ─── Light: card depth via drop shadow ─── */
+.light .card-glow {
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06),
+              0 4px 24px rgba(15, 23, 42, 0.10);
+}
+
+/* ─── Light: info panel — solid white, elevated shadow ─── */
+.light aside {
+  background: #FFFFFF;
+  box-shadow: -6px 0 40px rgba(15, 23, 42, 0.14),
+              -1px 0  0   rgba(15, 23, 42, 0.06);
+}
+
+/* ─── Light: skeleton in warm slate ─── */
+.light .skeleton {
+  background: linear-gradient(90deg,
+    #E2E8F0 25%,
+    #EEF2F7 50%,
+    #E2E8F0 75%
+  );
+  background-size: 800px 100%;
+}
+
+/* ─── Light: hide stars, blobs, scan lines ─── */
+.light .star            { display: none; }
+.light .blob            { display: none; }
+.light .hud-scan::after { display: none; }
+
+/* ─── Light: scrollbar ─── */
+.light ::-webkit-scrollbar-thumb       { background: #CBD5E1; }
+.light ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
