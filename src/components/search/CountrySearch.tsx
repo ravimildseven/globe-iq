@@ -43,19 +43,9 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
   const [open, setOpen]               = useState(false);
   const [query, setQuery]             = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  const [isMobile, setIsMobile]       = useState(false);
   const inputRef    = useRef<HTMLInputElement>(null);
   const listRef     = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
-
-  // Track viewport width for modal positioning (top on mobile, bottom on desktop)
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    const check = () => setIsMobile(mq.matches);
-    check();
-    mq.addEventListener("change", check);
-    return () => mq.removeEventListener("change", check);
-  }, []);
 
   // ─── Filter results ─────────────────────────────────────────────────────────
   const results = query.trim().length === 0
@@ -144,18 +134,18 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
             onClick={() => setOpen(false)}
           />
 
-          {/* Search panel — top on mobile (keyboard below), bottom on desktop */}
+          {/* Search panel — anchored above trigger, clamped so input is never off-screen */}
           <div
             className="fixed left-1/2 -translate-x-1/2 z-[70]
                        w-[520px] max-w-[calc(100vw-16px)]
                        animate-in fade-in duration-200"
-            style={isMobile ? { top: 16 } : { bottom: 110 }}
+            style={{ bottom: 110, maxHeight: "calc(100dvh - 140px)" }}
             role="dialog"
             aria-modal="true"
             aria-label="Country search"
           >
             <div
-              className="rounded-2xl overflow-hidden"
+              className="rounded-2xl overflow-hidden flex flex-col"
               style={{
                 background: "var(--search-bg)",
                 backdropFilter: "blur(24px)",
@@ -201,7 +191,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
               </div>
 
               {/* Results list */}
-              <div ref={listRef} className="max-h-[42vh] sm:max-h-[340px] overflow-y-auto overscroll-contain">
+              <div ref={listRef} className="overflow-y-auto overscroll-contain" style={{ maxHeight: "min(340px, 50dvh)" }}>
                 {results.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-10 text-center">
                     <MapPin size={20} className="text-text-muted/30" />

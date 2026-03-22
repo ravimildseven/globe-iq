@@ -329,13 +329,3 @@ body, .glass, .glass-light, header, aside, footer {
 .light ::-webkit-scrollbar-thumb       { background: #CBD5E1; }
 .light ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* ─── Search modal: top on mobile, bottom on desktop ─── */
-.search-modal-panel {
-  bottom: 110px;
-}
-@media (max-width: 639px) {
-  .search-modal-panel {
-    top: 16px;
-    bottom: auto;
-  }
-}
