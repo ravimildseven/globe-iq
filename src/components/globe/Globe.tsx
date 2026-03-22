@@ -10,6 +10,7 @@ import {
   type CountryShape,
 } from "@/lib/world-geo";
 import { CAPITAL_CITIES } from "@/lib/capitals";
+import { playHoverSound } from "@/lib/sound-effects";
 
 // Globe texture URLs — from three-globe@2.34.1 unpkg CDN (same library source)
 const TEX_DAY_DARK  = "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg";
@@ -1164,7 +1165,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             selectedCountry={selectedCountry}
             onCountrySelect={onCountrySelect}
             onInteractionStart={stopRotation}
-            onHoverCountry={setHoveredCountry}
+            onHoverCountry={(c) => { setHoveredCountry(c); if (c) playHoverSound(); }}
             zoomDelta={zoomDelta}
             onZoomHandled={onZoomHandled}
             isInteracting={isInteracting}
