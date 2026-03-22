@@ -21,6 +21,7 @@ interface GlobeProps {
   zoomDelta: number;
   onZoomHandled: () => void;
   theme: "dark" | "light";
+  marketColors?: Record<string, { hex: string; opacity: number }>;
 }
 
 // ─── Real-time subsolar point ─────────────────────────────────────────────────
@@ -484,7 +485,7 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme, marketColors,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
@@ -492,6 +493,7 @@ function EarthGlobe({
   onHoverCountry: (c: CountryCentroid | null) => void;
   sunDir: THREE.Vector3;
   theme: "dark" | "light";
+  marketColors?: Record<string, { hex: string; opacity: number }>;
 }) {
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
   const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
@@ -603,6 +605,17 @@ function EarthGlobe({
 
       {/* Country border lines */}
       <CountryBordersLayer shapes={shapes} />
+
+      {/* ── Market heat map — green/red fills for countries with index data ── */}
+      {marketColors && shapes.map(shape => {
+        const mc = marketColors[shape.code];
+        if (!mc) return null;
+        // Skip selected country (amber overlay takes priority)
+        if (selectedShape?.code === shape.code) return null;
+        return (
+          <CountryFill key={`mkt-${shape.code}`} shape={shape} color={mc.hex} opacity={mc.opacity} />
+        );
+      })}
 
       {/* ── Hover state: amber fill 10% + amber outline 55% ── */}
       {hoveredShape && !selectedShape && (
@@ -720,7 +733,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
   selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry,
-  zoomDelta, onZoomHandled, isInteracting, theme,
+  zoomDelta, onZoomHandled, isInteracting, theme, marketColors,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (c: CountryCentroid) => void;
@@ -730,6 +743,7 @@ function SceneRoot({
   onZoomHandled: () => void;
   isInteracting: boolean;
   theme: "dark" | "light";
+  marketColors?: Record<string, { hex: string; opacity: number }>;
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
@@ -747,6 +761,7 @@ function SceneRoot({
         onHoverCountry={onHoverCountry}
         sunDir={sunDir.current}
         theme={theme}
+        marketColors={marketColors}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
       <CameraFlyTo selectedCountry={selectedCountry} />
@@ -765,7 +780,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZoomHandled, theme, marketColors }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -801,6 +816,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
             onZoomHandled={onZoomHandled}
             isInteracting={isInteracting}
             theme={theme}
+            marketColors={marketColors}
           />
         </Suspense>
       </Canvas>

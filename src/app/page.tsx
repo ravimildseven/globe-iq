@@ -10,6 +10,7 @@ import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { Globe2, Plus, Minus } from "lucide-react";
+import { MarketData, marketHex, marketOpacity } from "@/lib/marketIndices";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
   ssr: false,
@@ -98,6 +99,28 @@ export default function Home() {
 
   const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
   const [zoomDelta, setZoomDelta] = useState(0);
+  const [marketData, setMarketData] = useState<MarketData>({});
+
+  // Fetch market data on mount, refresh every 5 minutes
+  useEffect(() => {
+    const fetchMarkets = () =>
+      fetch("/api/markets")
+        .then(r => r.ok ? r.json() : {})
+        .then((d: MarketData) => setMarketData(d))
+        .catch(() => {});
+    fetchMarkets();
+    const id = setInterval(fetchMarkets, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Derive per-country fill colours for the globe heat map
+  const marketColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, q] of Object.entries(marketData)) {
+      out[code] = { hex: marketHex(q.changePercent), opacity: marketOpacity(q.changePercent) };
+    }
+    return out;
+  }, [marketData]);
 
   const handleCountrySelect = useCallback((country: CountryCentroid) => {
     setSelectedCountry(country);
@@ -156,6 +179,7 @@ export default function Home() {
           zoomDelta={zoomDelta}
           onZoomHandled={handleZoomHandled}
           theme={globeTheme}
+          marketColors={marketColors}
         />
       </div>
 
@@ -180,7 +204,11 @@ export default function Home() {
 
       {/* ── Country info panel ── */}
       {selectedCountry && (
-        <InfoPanel country={selectedCountry} onClose={handleClose} />
+        <InfoPanel
+          country={selectedCountry}
+          onClose={handleClose}
+          marketData={marketData}
+        />
       )}
 
       {/* ── Bottom HUD status bar ── */}

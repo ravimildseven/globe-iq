@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
+import { MarketQuote } from "@/lib/marketIndices";
 import {
   TrendingUp,
   TrendingDown,
@@ -13,6 +14,7 @@ import {
   Minus,
   Globe2,
   Database,
+  Activity,
 } from "lucide-react";
 
 // ─── Response type matching the API ─────────────────────────────────────────
@@ -70,9 +72,11 @@ function Skeletons() {
 export default function EconomyTab({
   countryCode,
   countryName,
+  marketQuote,
 }: {
   countryCode: string;
   countryName: string;
+  marketQuote?: MarketQuote;
 }) {
   const [loading, setLoading]   = useState(true);
   const [result, setResult]     = useState<EconomyResponse | null>(null);
@@ -121,6 +125,15 @@ export default function EconomyTab({
 
   const isLive = result?.source === "worldbank";
 
+  // Live market quote formatting
+  const liveUp   = marketQuote && marketQuote.changePercent >= 0;
+  const liveSign = liveUp ? "+" : "";
+  const livePrice = marketQuote
+    ? marketQuote.price >= 1000
+      ? marketQuote.price.toLocaleString("en", { maximumFractionDigits: 2 })
+      : marketQuote.price.toFixed(2)
+    : null;
+
   return (
     <div className="space-y-3">
       {/* KPIs */}
@@ -131,7 +144,44 @@ export default function EconomyTab({
         <KPICard icon={<Users      size={14} />} label="Unemployment" value={data.unemployment} />
       </div>
 
-      {/* Stock market card */}
+      {/* Live market index card */}
+      {marketQuote ? (
+        <div className={`bg-bg-card border rounded-xl p-4 card-glow ${
+          liveUp ? "border-accent-green/30" : "border-accent-red/30"
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Activity size={12} className={liveUp ? "text-accent-green" : "text-accent-red"} />
+              <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+                {marketQuote.name}
+              </span>
+              <span className="text-[9px] text-text-muted/50 font-mono">{marketQuote.ticker}</span>
+            </div>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">
+              LIVE
+            </span>
+          </div>
+          <div className="flex items-end justify-between">
+            <p className="text-2xl font-bold text-text-primary font-mono">
+              {livePrice}
+              <span className="text-xs text-text-muted ml-1 font-sans">{marketQuote.currency}</span>
+            </p>
+            <span className={`flex items-center gap-1 text-sm font-bold ${
+              liveUp ? "text-accent-green" : "text-accent-red"
+            }`}>
+              {liveUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              {liveSign}{marketQuote.changePercent.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-bg-card border border-border-subtle rounded-xl px-4 py-3 flex items-center gap-3">
+          <BarChart3 size={14} className="text-text-muted flex-shrink-0" />
+          <span className="text-xs text-text-muted">No live market data for {countryName}</span>
+        </div>
+      )}
+
+      {/* Static stock market card (from economy DB) */}
       {data.stockIndex && (
         <div className={`bg-bg-card border rounded-xl p-4 card-glow ${
           stockTrend === "up"   ? "border-accent-green/25" :

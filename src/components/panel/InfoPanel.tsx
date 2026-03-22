@@ -5,6 +5,7 @@ import { X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight } from "lucide-r
 import { CountryCentroid } from "@/lib/countries-geo";
 import { TabId, CountryInfo } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
+import { MarketData } from "@/lib/marketIndices";
 import GeneralTab from "./tabs/GeneralTab";
 import NewsTab from "./tabs/NewsTab";
 import EconomyTab from "./tabs/EconomyTab";
@@ -13,6 +14,7 @@ import ConflictsTab from "./tabs/ConflictsTab";
 interface InfoPanelProps {
   country: CountryCentroid;
   onClose: () => void;
+  marketData?: MarketData;
 }
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -22,7 +24,7 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "conflicts", label: "Conflicts", icon: <Swords size={14} /> },
 ];
 
-export default function InfoPanel({ country, onClose }: InfoPanelProps) {
+export default function InfoPanel({ country, onClose, marketData }: InfoPanelProps) {
   const [activeTab, setActiveTab]       = useState<TabId>("general");
   const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
   const [loadingInfo, setLoadingInfo]   = useState(true);
@@ -217,7 +219,7 @@ export default function InfoPanel({ country, onClose }: InfoPanelProps) {
         >
           {activeTab === "general"   && <GeneralTab   info={countryInfo}  loading={loadingInfo} />}
           {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
-          {activeTab === "economy"   && <EconomyTab    countryCode={country.code} countryName={country.name} />}
+          {activeTab === "economy"   && <EconomyTab    countryCode={country.code} countryName={country.name} marketQuote={marketData?.[country.code]} />}
           {activeTab === "conflicts" && <ConflictsTab  countryCode={country.code} countryName={country.name} />}
         </div>
 
