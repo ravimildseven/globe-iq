@@ -95,7 +95,7 @@ export default function AmbientSound() {
         const g = drone.master.gain;
         const t = ctx.currentTime;           // ctx is running now
         g.setValueAtTime(0, t);
-        g.linearRampToValueAtTime(0.60, t + 3.0);
+        g.linearRampToValueAtTime(0.85, t + 3.0);
 
         // Share the confirmed-running context so click effects can piggyback
         setSharedAudioCtx(ctx);

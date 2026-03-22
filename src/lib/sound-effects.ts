@@ -10,10 +10,11 @@
 // _soundEnabled is only true while ambient is playing, so effects are a bonus
 // layer — they won't fire unless the user has already unblocked audio.
 
-let _soundEnabled   = false;
+let _soundEnabled      = false;  // ambient toggle
+let _effectsUnlocked   = false;  // true after first user gesture unlocks audio
 let _sharedCtx: AudioContext | null = null;
 
-export function setSoundEnabled(enabled: boolean)           { _soundEnabled = enabled; }
+export function setSoundEnabled(enabled: boolean)           { _soundEnabled = enabled; if (enabled) _effectsUnlocked = true; }
 export function setSharedAudioCtx(ctx: AudioContext | null) { _sharedCtx = ctx; }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -54,17 +55,15 @@ function scheduleTone(
 }
 
 // Run `fn` on a guaranteed-running AudioContext.
-// If the context is already running (shared ctx), call fn synchronously.
-// If it's a fresh suspended context, resume() then fn inside .then().
+// Effects fire whenever called from a click handler — no ambient-on requirement.
+// (Browser autoplay: each effect is called from user gesture so fresh ctx works.)
 function withCtx(fn: (c: AudioContext) => void): void {
-  if (!_soundEnabled) return;
   const c = getOrMakeCtx();
   if (!c) return;
 
   if (c.state === "running") {
     fn(c);
   } else {
-    // fresh context from a click handler — resume synchronously, nodes in .then()
     c.resume().then(() => fn(c));
   }
 }
@@ -74,8 +73,8 @@ function withCtx(fn: (c: AudioContext) => void): void {
 // Rising two-tone chime: A5 → E6
 export function playSelectSound(): void {
   withCtx(c => {
-    scheduleTone(c, 880, 0.50, 0.012, 0.28, 1320);
-    setTimeout(() => scheduleTone(c, 1320, 0.38, 0.010, 0.22), 65);
+    scheduleTone(c, 880, 0.75, 0.012, 0.32, 1320);
+    setTimeout(() => scheduleTone(c, 1320, 0.60, 0.010, 0.26), 65);
   });
 }
 
@@ -85,23 +84,26 @@ export function playHoverSound(): void {
   const now = Date.now();
   if (now - _lastHover < 130) return;
   _lastHover = now;
-  withCtx(c => scheduleTone(c, 800, 0.22, 0.006, 0.09));
+  withCtx(c => scheduleTone(c, 900, 0.35, 0.006, 0.09));
 }
 
 // Descending glide on panel close
 export function playDeselectSound(): void {
-  withCtx(c => scheduleTone(c, 800, 0.46, 0.010, 0.28, 600));
+  withCtx(c => scheduleTone(c, 900, 0.70, 0.010, 0.30, 600));
 }
 
 // Double-note "thock" for layer switches
 export function playLayerToggleSound(): void {
   withCtx(c => {
-    scheduleTone(c, 880,  0.38, 0.008, 0.14);
-    setTimeout(() => scheduleTone(c, 1100, 0.26, 0.005, 0.12), 70);
+    scheduleTone(c, 880,  0.65, 0.008, 0.18);
+    setTimeout(() => scheduleTone(c, 1100, 0.50, 0.005, 0.15), 70);
   });
 }
 
 // Short filtered rise on zoom
 export function playZoomSound(): void {
-  withCtx(c => scheduleTone(c, 400, 0.36, 0.010, 0.16, 800));
+  withCtx(c => scheduleTone(c, 500, 0.60, 0.010, 0.18, 900));
 }
+
+// Expose unlock helper so any first click can unblock audio
+export function unlockEffects(): void { _effectsUnlocked = true; }
