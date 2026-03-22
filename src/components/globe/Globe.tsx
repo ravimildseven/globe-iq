@@ -249,6 +249,50 @@ function ExpandingRing({ position }: { position: [number, number, number] }) {
   );
 }
 
+// ─── One-shot arrival pulse — two expanding rings that fade out over 1.5 s ────
+function ArrivalPulse({ position }: { position: [number, number, number] }) {
+  const outerRef = useRef<THREE.Mesh>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+  const elapsed  = useRef(0);
+  const DURATION = 1.5;
+
+  const normal = useMemo(() => new THREE.Vector3(...position).normalize(), [position]);
+  const quat   = useMemo(
+    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal),
+    [normal],
+  );
+
+  useFrame((_, d) => {
+    elapsed.current = Math.min(elapsed.current + d, DURATION);
+    const t    = elapsed.current / DURATION;
+    const fade = 1 - t;
+    if (outerRef.current) {
+      outerRef.current.scale.setScalar(1 + t * 3.5);
+      (outerRef.current.material as THREE.MeshBasicMaterial).opacity = fade * 0.75;
+    }
+    if (innerRef.current) {
+      const t2 = Math.min(t * 1.8, 1);
+      innerRef.current.scale.setScalar(1 + t2 * 2.0);
+      (innerRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - t2) * 0.55;
+    }
+  });
+
+  return (
+    <group position={position} quaternion={quat}>
+      <mesh ref={outerRef}>
+        <ringGeometry args={[0.04, 0.056, 48]} />
+        <meshBasicMaterial color="#F59E0B" transparent opacity={0.75}
+          side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh ref={innerRef}>
+        <ringGeometry args={[0.024, 0.036, 48]} />
+        <meshBasicMaterial color="#FCD34D" transparent opacity={0.55}
+          side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
 // ─── ISO alpha-2 → flag emoji ─────────────────────────────────────────────────
 function flagEmoji(code: string) {
   return [...code.toUpperCase()].map(
@@ -485,12 +529,13 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, sunDir, theme, marketColors,
+  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, onDoubleClickZoom, sunDir, theme, marketColors,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
+  onDoubleClickZoom: (dir: THREE.Vector3) => void;
   sunDir: THREE.Vector3;
   theme: "dark" | "light";
   marketColors?: Record<string, { hex: string; opacity: number }>;
@@ -577,6 +622,12 @@ function EarthGlobe({
     if (nearest) onCountrySelect(nearest);
   }, [shapes, onCountrySelect, onInteractionStart]);
 
+  // ── Double-click → zoom in toward clicked point ─────────────────────────────
+  const handleDoubleClick = useCallback((e: any) => {
+    if (!e.point) return;
+    onDoubleClickZoom(new THREE.Vector3().copy(e.point).normalize());
+  }, [onDoubleClickZoom]);
+
   const selectedShape = selectedCountry
     ? shapes.find(s => s.code === selectedCountry.code) ?? null
     : null;
@@ -587,6 +638,7 @@ function EarthGlobe({
       <Sphere
         args={[1, 128, 128]}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         onPointerMove={handlePointerMove}
         onPointerOut={() => {
           setHoveredShape(null);
@@ -674,42 +726,64 @@ function CameraController({ zoomDelta, onZoomHandled }: {
   return null;
 }
 
-// ─── Camera fly-to animation when a country is selected ──────────────────────
-// Smoothly rotates the globe to face the selected country's centroid.
-// Uses easeInOutCubic over FLY_DURATION seconds. Preserves current zoom distance
-// (clamped to max 2.8 so we don't zoom out from a close position).
-const FLY_DURATION = 1.1; // seconds
+// ─── Unified camera animator — country fly-to (with zoom-in) + double-click ──
+const FLY_DURATION = 1.4; // seconds — slightly longer for smooth zoom+rotate arc
 
-function CameraFlyTo({ selectedCountry }: { selectedCountry: CountryCentroid | null }) {
-  const { camera } = useThree();
-  const flyStart   = useRef<THREE.Vector3 | null>(null);
-  const flyEnd     = useRef<THREE.Vector3 | null>(null);
-  const elapsed    = useRef(0);
-  const prevCode   = useRef<string | null>(null);
+function CameraAnimator({
+  selectedCountry,
+  doubleClickTarget,
+  onArrival,
+}: {
+  selectedCountry: CountryCentroid | null;
+  doubleClickTarget: THREE.Vector3 | null;
+  onArrival?: () => void;
+}) {
+  const { camera }   = useThree();
+  const flyStart     = useRef<THREE.Vector3 | null>(null);
+  const flyEnd       = useRef<THREE.Vector3 | null>(null);
+  const elapsed      = useRef(0);
+  const duration     = useRef(FLY_DURATION);
+  const isCountryFly = useRef(false);
+  const prevCode     = useRef<string | null>(null);
 
+  // Country selected → rotate + zoom in to ~2.1 units
   useEffect(() => {
     if (!selectedCountry) return;
-    // Only animate if the selected country actually changed
     if (selectedCountry.code === prevCode.current) return;
     prevCode.current = selectedCountry.code;
 
     const [x, y, z] = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1);
     const dir = new THREE.Vector3(x, y, z).normalize();
-    const dist = Math.min(camera.position.length(), 2.8);
 
-    flyStart.current = camera.position.clone();
-    flyEnd.current   = dir.multiplyScalar(dist);
-    elapsed.current  = 0;
+    flyStart.current     = camera.position.clone();
+    flyEnd.current       = dir.multiplyScalar(2.1);
+    elapsed.current      = 0;
+    duration.current     = FLY_DURATION;
+    isCountryFly.current = true;
   }, [selectedCountry, camera]);
+
+  // Double-click → zoom in toward clicked direction
+  useEffect(() => {
+    if (!doubleClickTarget) return;
+    const dist = Math.max(1.6, camera.position.length() - 0.8);
+    flyStart.current     = camera.position.clone();
+    flyEnd.current       = doubleClickTarget.clone().normalize().multiplyScalar(dist);
+    elapsed.current      = 0;
+    duration.current     = 0.75;
+    isCountryFly.current = false;
+  }, [doubleClickTarget, camera]);
 
   useFrame((_, delta) => {
     if (!flyStart.current || !flyEnd.current) return;
     elapsed.current += delta;
-    const t = Math.min(elapsed.current / FLY_DURATION, 1);
-    // easeInOutCubic
+    const t     = Math.min(elapsed.current / duration.current, 1);
     const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     camera.position.lerpVectors(flyStart.current, flyEnd.current, eased);
-    if (t >= 1) { flyStart.current = null; flyEnd.current = null; }
+    if (t >= 1) {
+      flyStart.current = null;
+      flyEnd.current   = null;
+      if (isCountryFly.current) onArrival?.();
+    }
   });
 
   return null;
@@ -726,7 +800,9 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
   });
   return (
     <OrbitControls ref={ctrlRef} enablePan={false} enableZoom
-      minDistance={1.5} maxDistance={4.5} dampingFactor={0.06} enableDamping />
+      minDistance={1.5} maxDistance={4.5}
+      dampingFactor={0.05} enableDamping
+      minPolarAngle={0} maxPolarAngle={Math.PI} />
   );
 }
 
@@ -747,6 +823,29 @@ function SceneRoot({
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
+  // Double-click zoom target — new Vector3 reference on each event triggers effect
+  const [dblClickTarget, setDblClickTarget] = useState<THREE.Vector3 | null>(null);
+
+  // Arrival pulse state — key increments to remount (restart animation) on each arrival
+  const [arrivalPulseKey, setArrivalPulseKey]   = useState(0);
+  const [showArrivalPulse, setShowArrivalPulse] = useState(false);
+  const arrivalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDoubleClickZoom = useCallback((dir: THREE.Vector3) => {
+    setDblClickTarget(dir.clone());
+  }, []);
+
+  const handleArrival = useCallback(() => {
+    if (arrivalTimerRef.current) clearTimeout(arrivalTimerRef.current);
+    setArrivalPulseKey(k => k + 1);
+    setShowArrivalPulse(true);
+    arrivalTimerRef.current = setTimeout(() => setShowArrivalPulse(false), 1700);
+  }, []);
+
+  useEffect(() => () => {
+    if (arrivalTimerRef.current) clearTimeout(arrivalTimerRef.current);
+  }, []);
+
   useFrame(() => {
     if (Math.random() < 0.0003) sunDir.current.copy(getSunPosition());
   });
@@ -759,13 +858,22 @@ function SceneRoot({
         onCountrySelect={onCountrySelect}
         onInteractionStart={onInteractionStart}
         onHoverCountry={onHoverCountry}
+        onDoubleClickZoom={handleDoubleClickZoom}
         sunDir={sunDir.current}
         theme={theme}
         marketColors={marketColors}
       />
       <CameraController zoomDelta={zoomDelta} onZoomHandled={onZoomHandled} />
-      <CameraFlyTo selectedCountry={selectedCountry} />
+      <CameraAnimator
+        selectedCountry={selectedCountry}
+        doubleClickTarget={dblClickTarget}
+        onArrival={handleArrival}
+      />
       <AutoRotate enabled={!isInteracting && !selectedCountry} />
+      {showArrivalPulse && selectedCountry && (() => {
+        const pos = latLngToVector3(selectedCountry.lat, selectedCountry.lng, 1.004);
+        return <ArrivalPulse key={arrivalPulseKey} position={pos} />;
+      })()}
     </>
   );
 }
