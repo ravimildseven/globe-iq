@@ -136,9 +136,12 @@ export default function AmbientSound() {
   const toggle = useCallback(() => {
     if (isPlaying) {
       // Fade out
-      if (soundRef.current) {
+      if (soundRef.current && ctxRef.current) {
+        const ctx = ctxRef.current;
         const g = soundRef.current.master.gain;
-        g.linearRampToValueAtTime(0, ctxRef.current!.currentTime + 1.5);
+        g.cancelScheduledValues(ctx.currentTime);
+        g.setValueAtTime(g.value, ctx.currentTime);
+        g.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
         setTimeout(() => {
           soundRef.current?.stop();
           ctxRef.current?.close();
@@ -148,14 +151,21 @@ export default function AmbientSound() {
       }
       setIsPlaying(false);
     } else {
-      // Start
+      // Start — ctx may be suspended even in a click handler (Chrome 71+, Safari).
+      // Explicitly resume, then schedule the gain ramp so currentTime is live.
       const ctx = new AudioContext();
       ctxRef.current = ctx;
       const sound = createEarthSoundscape(ctx);
       soundRef.current = sound;
-      // Fade in
-      sound.master.gain.setValueAtTime(0, ctx.currentTime);
-      sound.master.gain.linearRampToValueAtTime(0.7, ctx.currentTime + 3);
+      ctx.resume().then(() => {
+        sound.master.gain.cancelScheduledValues(ctx.currentTime);
+        sound.master.gain.setValueAtTime(0, ctx.currentTime);
+        sound.master.gain.linearRampToValueAtTime(0.7, ctx.currentTime + 3);
+      }).catch(() => {
+        // Fallback: schedule anyway, works if context auto-resumed
+        sound.master.gain.setValueAtTime(0, ctx.currentTime);
+        sound.master.gain.linearRampToValueAtTime(0.7, ctx.currentTime + 3);
+      });
       setIsPlaying(true);
     }
   }, [isPlaying]);
