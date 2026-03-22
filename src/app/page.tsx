@@ -63,30 +63,37 @@ function Starfield() {
 }
 
 /* ── Ambient gradient blobs ──────────────────────────────── */
-function AmbientBlobs() {
+function AmbientBlobs({ theme }: { theme: "dark" | "light" }) {
+  const isLight = theme === "light";
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      {/* Top-left — deep indigo */}
+      {/* Top-left */}
       <div className="blob" style={{
         width: 600, height: 600,
         top: "-15%", left: "-10%",
-        background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)",
+        background: isLight
+          ? "radial-gradient(circle, rgba(100,180,230,0.12) 0%, transparent 70%)"
+          : "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)",
         ["--dur" as string]: "22s",
         ["--delay" as string]: "0s",
       }} />
-      {/* Bottom-right — amber warmth */}
+      {/* Bottom-right */}
       <div className="blob" style={{
         width: 500, height: 500,
         bottom: "-10%", right: "-8%",
-        background: "radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)",
+        background: isLight
+          ? "radial-gradient(circle, rgba(245,180,100,0.09) 0%, transparent 70%)"
+          : "radial-gradient(circle, rgba(245,158,11,0.07) 0%, transparent 70%)",
         ["--dur" as string]: "18s",
         ["--delay" as string]: "6s",
       }} />
-      {/* Center-top — subtle blue */}
+      {/* Center-top */}
       <div className="blob" style={{
         width: 400, height: 400,
         top: "5%", left: "40%",
-        background: "radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)",
+        background: isLight
+          ? "radial-gradient(circle, rgba(130,200,240,0.08) 0%, transparent 70%)"
+          : "radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)",
         ["--dur" as string]: "25s",
         ["--delay" as string]: "12s",
       }} />
@@ -162,7 +169,7 @@ export default function Home() {
 
       {/* ── Deep space background ── */}
       <Starfield />
-      <AmbientBlobs />
+      <AmbientBlobs theme={globeTheme} />
 
       {/* ── Header ── */}
       <header className="absolute top-0 left-0 right-0 z-40 px-6 pt-5 pb-3 flex items-center justify-between pointer-events-none">

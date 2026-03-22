@@ -96,15 +96,22 @@ const DAY_NIGHT_FRAG = /* glsl */ `
 `;
 
 // ─── Atmosphere ───────────────────────────────────────────────────────────────
-function Atmosphere() {
+function Atmosphere({ theme }: { theme: "dark" | "light" }) {
+  const isLight = theme === "light";
   return (
     <>
+      {/* Inner haze — sky blue in light, deep blue in dark */}
       <Sphere args={[1.012, 64, 64]}>
-        <meshStandardMaterial color="#5BB8FF" transparent opacity={0.06}
+        <meshStandardMaterial
+          color={isLight ? "#87CEEB" : "#5BB8FF"}
+          transparent opacity={isLight ? 0.10 : 0.06}
           side={THREE.FrontSide} depthWrite={false} />
       </Sphere>
+      {/* Outer limb glow */}
       <Sphere args={[1.07, 64, 64]}>
-        <meshBasicMaterial color="#6EC6FF" transparent opacity={0.025}
+        <meshBasicMaterial
+          color={isLight ? "#C8E8F8" : "#6EC6FF"}
+          transparent opacity={isLight ? 0.045 : 0.025}
           side={THREE.BackSide} depthWrite={false} />
       </Sphere>
     </>
@@ -574,17 +581,18 @@ function EarthGlobe({
     });
   }, [texDayDark, texDayLight, nightTexture]);
 
+  // Stable uniforms object — never recreated so the compiled shader program
+  // is never thrown away. dayTexture.value is patched imperatively below.
   const uniforms = useMemo(() => ({
     dayTexture:   { value: earthTexture },
     nightTexture: { value: nightTexture },
-    sunDirection: { value: sunDir.clone() },
-  }), [earthTexture, nightTexture]); // eslint-disable-line react-hooks/exhaustive-deps
+    sunDirection: { value: new THREE.Vector3() },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hot-swap texture when theme changes without remounting
+  // Hot-swap texture when theme changes — mutate .value, no recompile needed
   useEffect(() => {
     if (shaderRef.current) {
       shaderRef.current.uniforms.dayTexture.value = earthTexture;
-      shaderRef.current.needsUpdate = true;
     }
   }, [earthTexture]);
 
@@ -729,7 +737,7 @@ function EarthGlobe({
         selectedCode={selectedCountry?.code ?? null}
       />
 
-      <Atmosphere />
+      <Atmosphere theme={theme} />
     </group>
   );
 }
@@ -935,7 +943,7 @@ export default function Globe({ selectedCountry, onCountrySelect, zoomDelta, onZ
       <Canvas
         camera={{ position: [0, 0.25, 2.7], fov: 43 }}
         gl={{ antialias: true, alpha: true }}
-        style={{ background: "transparent" }}
+        style={{ background: theme === "light" ? "#C5DFF0" : "transparent" }}
       >
         <Suspense fallback={<LoadingFallback />}>
           <SceneRoot

@@ -321,9 +321,8 @@ body, .glass, .glass-light, header, aside, footer {
   background-size: 800px 100%;
 }
 
-/* ─── Light: hide stars, blobs, scan lines ─── */
+/* ─── Light: hide stars + scan lines (blobs are theme-aware in React) ─── */
 .light .star            { display: none; }
-.light .blob            { display: none; }
 .light .hud-scan::after { display: none; }
 
 /* ─── Light: scrollbar ─── */
