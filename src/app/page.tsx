@@ -13,7 +13,8 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
 import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
 import { playSelectSound, playDeselectSound, playZoomSound, playLayerToggleSound } from "@/lib/sound-effects";
-import { MarketData, marketHex, marketOpacity } from "@/lib/marketIndices";
+import { MarketData, marketHex, marketOpacity, COUNTRY_INDEX } from "@/lib/marketIndices";
+import { getExchangeStatuses, openMarketCount, ExchangeStatus } from "@/lib/market-hours";
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { getCountryTimezone } from "@/lib/country-timezones";
 import { POPULATION_DENSITY, densityColor } from "@/lib/population-data";
@@ -181,9 +182,14 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  // Market overlay
+  // Market overlay — grey baseline for all known exchanges, overwritten with live data
   const marketColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
     const out: Record<string, { hex: string; opacity: number }> = {};
+    // Grey fill for all countries with a tracked exchange (no data yet / unavailable)
+    for (const code of Object.keys(COUNTRY_INDEX)) {
+      out[code] = { hex: "#64748B", opacity: 0.15 };
+    }
+    // Overwrite with live market data
     for (const [code, q] of Object.entries(marketData)) {
       out[code] = { hex: marketHex(q.changePercent), opacity: marketOpacity(q.changePercent) };
     }
@@ -476,13 +482,85 @@ export default function Home() {
           </span>
         </div>
 
-        {/* About + UTC clock */}
+        {/* About + market hours pill + UTC clock */}
         <div className="flex items-center gap-2 pointer-events-auto">
           <AboutPanel />
+          <MarketHoursPill />
           <UTCClock />
         </div>
       </div>
     </main>
+  );
+}
+
+/* ── Market Hours Pill ───────────────────────────────────── */
+function MarketHoursPill() {
+  const [open, setOpen] = useState(false);
+  const [statuses, setStatuses] = useState<ExchangeStatus[]>(() => getExchangeStatuses());
+  const count = openMarketCount();
+
+  useEffect(() => {
+    const id = setInterval(() => setStatuses(getExchangeStatuses()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="relative hidden sm:flex">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="glass rounded-full px-3.5 py-1.5 flex items-center gap-2"
+        aria-label="Market hours"
+      >
+        <span className={`relative w-1.5 h-1.5 rounded-full ${count > 0 ? "bg-accent-green pulse-dot" : "bg-text-muted"}`} />
+        <span className="text-[11px] text-text-muted font-mono">
+          {count}<span className="text-text-muted/50">/6 open</span>
+        </span>
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          {/* Popover */}
+          <div className="absolute bottom-9 right-0 z-50 glass rounded-xl border border-border p-3 w-64
+                          animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <p className="text-[10px] text-text-muted uppercase tracking-widest font-medium mb-2.5">
+              Market Hours
+            </p>
+            <div className="space-y-2">
+              {statuses.map(s => {
+                const dotColor =
+                  s.status === "open"  ? "bg-accent-green pulse-dot" :
+                  s.status === "pre"   ? "bg-accent-amber" :
+                  s.status === "post"  ? "bg-accent-amber" :
+                                         "bg-accent-red";
+                const badgeColor =
+                  s.status === "open"  ? "bg-accent-green/10 text-accent-green" :
+                  s.status === "pre"   ? "bg-accent-amber/10 text-accent-amber" :
+                  s.status === "post"  ? "bg-accent-amber/10 text-accent-amber" :
+                                         "bg-accent-red/10 text-accent-red";
+                const badgeLabel =
+                  s.status === "open" ? "Open" :
+                  s.status === "pre"  ? "Pre" :
+                  s.status === "post" ? "Post" : "Closed";
+                return (
+                  <div key={s.id} className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
+                    <span className="text-xs text-text-secondary flex-1 min-w-0 truncate">{s.name}</span>
+                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${badgeColor}`}>
+                      {badgeLabel}
+                    </span>
+                    {s.note && (
+                      <span className="text-[10px] text-text-muted whitespace-nowrap">{s.note}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

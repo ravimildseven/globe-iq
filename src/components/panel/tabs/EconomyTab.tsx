@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
 import { MarketQuote } from "@/lib/marketIndices";
+import { getExchangeStatuses, ExchangeStatus } from "@/lib/market-hours";
 import {
   TrendingUp,
   TrendingDown,
@@ -15,6 +16,7 @@ import {
   Globe2,
   Database,
   Activity,
+  Clock,
 } from "lucide-react";
 
 // ─── Response type matching the API ─────────────────────────────────────────
@@ -23,6 +25,67 @@ interface EconomyResponse {
   source: "worldbank" | "static" | "none";
   sourceLabel: string;
   asOf: string;
+}
+
+// ─── Market Hours Section ────────────────────────────────────────────────────
+function StatusDot({ status }: { status: ExchangeStatus["status"] }) {
+  const color =
+    status === "open"  ? "bg-accent-green" :
+    status === "pre"   ? "bg-accent-amber" :
+    status === "post"  ? "bg-accent-amber" :
+                         "bg-accent-red";
+  const pulse = status === "open" ? "pulse-dot" : "";
+  return <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${color} ${pulse}`} />;
+}
+
+function StatusBadge({ status }: { status: ExchangeStatus["status"] }) {
+  const label =
+    status === "open"  ? "Open" :
+    status === "pre"   ? "Pre" :
+    status === "post"  ? "Post" :
+                         "Closed";
+  const cls =
+    status === "open"  ? "bg-accent-green/10 text-accent-green" :
+    status === "pre"   ? "bg-accent-amber/10 text-accent-amber" :
+    status === "post"  ? "bg-accent-amber/10 text-accent-amber" :
+                         "bg-accent-red/10 text-accent-red";
+  return (
+    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function MarketHoursSection() {
+  const [statuses, setStatuses] = useState<ExchangeStatus[]>(() => getExchangeStatuses());
+
+  useEffect(() => {
+    const id = setInterval(() => setStatuses(getExchangeStatuses()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Clock size={13} className="text-accent-cyan" />
+        <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+          Market Hours
+        </span>
+      </div>
+      <div className="space-y-2">
+        {statuses.map(s => (
+          <div key={s.id} className="flex items-center gap-2">
+            <StatusDot status={s.status} />
+            <span className="text-xs text-text-secondary flex-1 min-w-0 truncate">{s.name}</span>
+            <StatusBadge status={s.status} />
+            {s.note && (
+              <span className="text-[10px] text-text-muted whitespace-nowrap">{s.note}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ─── KPI card ────────────────────────────────────────────────────────────────
@@ -234,6 +297,9 @@ export default function EconomyTab({
           </div>
         </div>
       )}
+
+      {/* Market Hours */}
+      <MarketHoursSection />
 
       {/* Source badge */}
       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent-indigo/5 border border-accent-indigo/15">

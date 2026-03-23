@@ -62,10 +62,7 @@ export function marketHex(changePercent: number): string {
   return changePercent >= 0 ? "#22C55E" : "#EF4444";
 }
 
-/** Overlay opacity — stronger for bigger moves */
+/** Overlay opacity — stronger for bigger moves, min 0.30 at 0%, max 0.70 */
 export function marketOpacity(changePercent: number): number {
-  const abs = Math.abs(changePercent);
-  if (abs >= 2)   return 0.28;
-  if (abs >= 0.5) return 0.15;
-  return 0.07;
+  return Math.min(0.70, 0.30 + Math.abs(changePercent) / 5);
 }
