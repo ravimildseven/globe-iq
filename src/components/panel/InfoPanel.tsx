@@ -195,7 +195,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
           {/* Close button — always top-right */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-4 z-10 w-8 h-8 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+            className="absolute top-3 right-4 z-10 w-10 h-10 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
             aria-label="Close"
           >
             <X size={16} />

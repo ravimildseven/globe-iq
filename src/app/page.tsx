@@ -258,6 +258,13 @@ export default function Home() {
     });
   }, []);
 
+  // Expose test helpers on window so Playwright tests can open the panel
+  // without relying on WebGL raycasting in headless mode.
+  useEffect(() => {
+    (window as any).__globeiq = { selectCountry: handleCountrySelect, centroids: countryCentroids };
+    return () => { delete (window as any).__globeiq; };
+  }, [handleCountrySelect]);
+
   // Search → fly only; no panel, no sound. User clicks the country to open details.
   const handleSearchFly = useCallback((country: CountryCentroid) => {
     setFlyToTarget(country);
