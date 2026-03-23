@@ -44,4 +44,4 @@ export interface EconomyData {
   stockChange?: string;
 }
 
-export type TabId = "general" | "news" | "economy" | "conflicts";
+export type TabId = "general" | "news" | "economy" | "conflicts" | "travel";

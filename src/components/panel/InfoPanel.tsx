@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import {
   X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight,
-  Users, Building2, Ruler, Languages,
+  Users, Building2, Ruler, Languages, Plane,
 } from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
 import { TabId, CountryInfo } from "@/lib/types";
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { MarketData } from "@/lib/marketIndices";
 import GeneralTab from "./tabs/GeneralTab";
+import TravelTab from "./tabs/TravelTab";
 import NewsTab from "./tabs/NewsTab";
 import EconomyTab from "./tabs/EconomyTab";
 import ConflictsTab from "./tabs/ConflictsTab";
@@ -26,6 +27,7 @@ const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "news",      label: "News",      icon: <Newspaper  size={14} /> },
   { id: "economy",   label: "Economy",   icon: <TrendingUp size={14} /> },
   { id: "conflicts", label: "Conflicts", icon: <Swords     size={14} /> },
+  { id: "travel",    label: "Travel",    icon: <Plane      size={14} /> },
 ];
 
 /* ── Number formatters ── */
@@ -326,6 +328,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
           {activeTab === "news"      && <NewsTab       articles={[]}       loading={false}        countryName={country.name} />}
           {activeTab === "economy"   && <EconomyTab    countryCode={country.code} countryName={country.name} marketQuote={marketData?.[country.code]} />}
           {activeTab === "conflicts" && <ConflictsTab  countryCode={country.code} countryName={country.name} />}
+          {activeTab === "travel"    && <TravelTab     countryCode={country.code} />}
         </div>
 
         {/* ── Bottom edge accent ── */}
