@@ -292,8 +292,8 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         />
 
         {/* ── Tabs ── */}
-        <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0">
-          <div className="flex gap-1 relative">
+        <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 relative flex-nowrap">
             <div
               className="tab-indicator absolute top-0.5 bottom-0.5 bg-bg-elevated rounded-lg"
               style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
