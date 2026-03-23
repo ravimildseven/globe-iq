@@ -27,6 +27,25 @@ const HOME_CURRENCY: Record<string, string> = {
   SG: "SGD", AE: "AED",
 };
 
+// ─── ISO 4217 currency code per destination country ───────────────────────────
+const COUNTRY_CURRENCY: Record<string, string> = {
+  AF:"AFN",AL:"ALL",DZ:"DZD",AO:"AOA",AR:"ARS",AM:"AMD",AU:"AUD",AT:"EUR",
+  AZ:"AZN",BH:"BHD",BD:"BDT",BE:"EUR",BO:"BOB",BA:"BAM",BW:"BWP",BR:"BRL",
+  BN:"BND",BG:"BGN",CA:"CAD",CL:"CLP",CN:"CNY",CO:"COP",HR:"HRK",CU:"CUP",
+  CZ:"CZK",DK:"DKK",EG:"EGP",ET:"ETB",FI:"EUR",FR:"EUR",GE:"GEL",DE:"EUR",
+  GH:"GHS",GR:"EUR",HU:"HUF",IN:"INR",ID:"IDR",IR:"IRR",IQ:"IQD",IE:"EUR",
+  IL:"ILS",IT:"EUR",JP:"JPY",JO:"JOD",KZ:"KZT",KE:"KES",KP:"KPW",KR:"KRW",
+  KW:"KWD",LB:"LBP",LY:"LYD",MY:"MYR",MX:"MXN",MA:"MAD",MM:"MMK",NP:"NPR",
+  NL:"EUR",NZ:"NZD",NG:"NGN",NO:"NOK",OM:"OMR",PK:"PKR",PE:"PEN",PH:"PHP",
+  PL:"PLN",PT:"EUR",QA:"QAR",RO:"RON",RU:"RUB",SA:"SAR",SG:"SGD",ZA:"ZAR",
+  ES:"EUR",LK:"LKR",SE:"SEK",CH:"CHF",TW:"TWD",TH:"THB",TR:"TRY",UA:"UAH",
+  AE:"AED",GB:"GBP",US:"USD",UZ:"UZS",VE:"VES",VN:"VND",YE:"YER",ZW:"ZWL",
+  BY:"BYN",TN:"TND",TZ:"TZS",UG:"UGX",ZM:"ZMW",KH:"KHR",CM:"XAF",CD:"CDF",
+  MZ:"MZN",SY:"SYP",SD:"SDG",SR:"SRD",SN:"XOF",RS:"RSD",EE:"EUR",LV:"EUR",
+  LT:"EUR",SK:"EUR",SI:"EUR",CY:"EUR",MT:"EUR",ME:"EUR",MK:"MKD",
+  IS:"ISK",JM:"JMD",GN:"GNF",KG:"KGS",TJ:"TJS",TM:"TMT",MN:"MNT",
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function visaLabel(v: VisaStatus): string {
@@ -51,31 +70,30 @@ function langLabel(t: LanguageTip | undefined): { text: string; cls: string } {
 }
 
 /**
- * Returns the user's offset from the given IANA timezone in hours (positive = ahead of user).
+ * Returns the UTC-offset difference between the given IANA timezone and the
+ * user's local timezone (positive = destination is ahead of user).
  */
 function getTimeDiff(ianaTz: string): { hours: number; label: string } | null {
   try {
-    const nowMs = Date.now();
-    const fmt = new Intl.DateTimeFormat("en-US", {
+    const now = new Date();
+    const destParts = new Intl.DateTimeFormat("en", {
       timeZone: ianaTz,
-      hour: "numeric",
-      minute: "numeric",
-      hour12: false,
-    });
-    const parts = fmt.formatToParts(new Date(nowMs));
-    const h = parseInt(parts.find(p => p.type === "hour")?.value ?? "0");
-    const m = parseInt(parts.find(p => p.type === "minute")?.value ?? "0");
-    const local = new Date();
-    const localH = local.getHours();
-    const localM = local.getMinutes();
-    const diff = (h * 60 + m) - (localH * 60 + localM);
-    // normalise to [-720, 720]
-    const normDiff = ((diff + 720) % 1440) - 720;
-    const hrs = Math.round(normDiff / 15) * 15 / 60;
+      timeZoneName: "shortOffset",
+    }).formatToParts(now);
+    const destOffsetStr = destParts.find(p => p.type === "timeZoneName")?.value ?? "GMT+0";
+    const parseGMT = (s: string) => {
+      const m = s.match(/GMT([+-])(\d+)(?::(\d+))?/);
+      if (!m) return 0;
+      return (m[1] === "+" ? 1 : -1) * (parseInt(m[2]) * 60 + parseInt(m[3] ?? "0"));
+    };
+    const destOffsetMins  = parseGMT(destOffsetStr);
+    const localOffsetMins = -now.getTimezoneOffset(); // JS returns negative of actual offset
+    const diffMins = destOffsetMins - localOffsetMins;
+    const hrs = diffMins / 60;
     if (hrs === 0) return { hours: 0, label: "Same time as you" };
-    const abs   = Math.abs(hrs);
-    const frac  = abs % 1 !== 0 ? abs.toFixed(1) : abs.toString();
-    const dir   = hrs > 0 ? "ahead" : "behind";
+    const abs  = Math.abs(hrs);
+    const frac = abs % 1 !== 0 ? abs.toFixed(1) : abs.toString();
+    const dir  = hrs > 0 ? "ahead" : "behind";
     return { hours: hrs, label: `${frac}h ${dir} of you` };
   } catch {
     return null;
@@ -140,30 +158,19 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
   const [rateLabel, setRateLabel] = useState<string>("");
   useEffect(() => {
     setRateLabel("");
-    // Skip if home == destination currency or home is the country itself
     if (code === homeCountry) { setRateLabel("—"); return; }
-    fetch(`https://api.frankfurter.app/latest?from=${homeCurrency}&to=${code}`)
+    const destCurrency = COUNTRY_CURRENCY[code];
+    if (!destCurrency || destCurrency === homeCurrency) { setRateLabel("—"); return; }
+    fetch(`/api/exchange-rate?from=${homeCurrency}&to=${destCurrency}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        // data.rates[code] might not exist if dest uses a different code
-        // Fallback: try from dest currency to home
-        if (!data?.rates?.[code]) {
-          // Try fetching dest currency name from REST countries
-          return fetch(`https://api.frankfurter.app/latest?from=${homeCurrency}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(d => {
-              if (!d?.rates) return;
-              // We can't easily guess the currency, just skip
-              setRateLabel("See live rates");
-            });
-        }
-        const rate = data.rates[code] as number;
+        const rate = data?.rate as number | undefined;
+        if (!rate) { setRateLabel("See live rates"); return; }
         const inverted = (1 / rate).toFixed(2);
-        // e.g. "₹22.8 per 1 AED" or "£0.79 per 1 USD"
         const homeCurrSymbol = homeCurrencySymbol(homeCurrency);
-        setRateLabel(`${homeCurrSymbol}${inverted} per 1 ${code}`);
+        setRateLabel(`${homeCurrSymbol}${inverted} per 1 ${destCurrency}`);
       })
-      .catch(() => {});
+      .catch(() => setRateLabel("See live rates"));
   }, [code, homeCountry, homeCurrency]);
 
   // ── Country GDP + population ──────────────────────────────────────────────

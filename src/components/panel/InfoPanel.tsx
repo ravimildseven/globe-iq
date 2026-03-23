@@ -47,7 +47,9 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
   const [activeTab, setActiveTab]       = useState<TabId>("general");
   const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
   const [loadingInfo, setLoadingInfo]   = useState(true);
-  const [heroCollapsed, setHeroCollapsed] = useState(false);
+  const [heroCollapsed, setHeroCollapsed]       = useState(false);
+  const [tilesCollapsed, setTilesCollapsed]     = useState(false);
+  const [summaryCollapsed, setSummaryCollapsed] = useState(false);
   const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
   const tabBarRef                       = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -273,43 +275,83 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
           </span>
         </button>
 
+        {/* ── Quick Facts ribbon toggle ── */}
+        <button
+          onClick={() => setTilesCollapsed(c => !c)}
+          className="flex items-center justify-center gap-1 w-full py-1 text-text-muted/40 hover:text-text-muted/70 transition-colors bg-bg-card border-b border-border/30 flex-shrink-0"
+          aria-label={tilesCollapsed ? "Expand quick facts" : "Collapse quick facts"}
+        >
+          <ChevronDown
+            size={13}
+            className={`transition-transform duration-300 ${tilesCollapsed ? "rotate-180" : ""}`}
+          />
+          <span className="text-[9px] uppercase tracking-widest font-medium">
+            {tilesCollapsed ? "Show stats" : "Hide stats"}
+          </span>
+        </button>
+
         {/* ── Quick Facts ribbon ── */}
-        {countryInfo && !loadingInfo ? (
-          <div className="flex items-stretch border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle flex-shrink-0">
-            {[
-              { icon: <Users     size={11} />, label: "Pop.",     value: fmtPop(countryInfo.population) },
-              { icon: <Ruler     size={11} />, label: "Area km²", value: fmtArea(countryInfo.area) },
-              { icon: <Building2 size={11} />, label: "Capital",  value: countryInfo.capital },
-              { icon: <Languages size={11} />, label: "Language", value: countryInfo.languages[0] || "N/A" },
-            ].map(item => (
-              <div key={item.label} className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5 min-w-0">
-                <span className="text-accent-cyan/70">{item.icon}</span>
-                <span className="text-[8px] text-text-muted uppercase tracking-wide leading-none">{item.label}</span>
-                <span className="text-[10px] font-semibold text-text-primary truncate w-full text-center px-0.5 leading-tight">
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Ribbon skeleton */
-          <div className="flex border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle flex-shrink-0">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex-1 py-3 flex flex-col items-center gap-1.5">
-                <div className="skeleton h-2 w-6 rounded" />
-                <div className="skeleton h-3 w-10 rounded" />
-              </div>
-            ))}
-          </div>
-        )}
+        <div
+          className="overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out"
+          style={{ height: tilesCollapsed ? 0 : undefined }}
+        >
+          {countryInfo && !loadingInfo ? (
+            <div className="flex items-stretch border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle">
+              {[
+                { icon: <Users     size={11} />, label: "Pop.",     value: fmtPop(countryInfo.population) },
+                { icon: <Ruler     size={11} />, label: "Area km²", value: fmtArea(countryInfo.area) },
+                { icon: <Building2 size={11} />, label: "Capital",  value: countryInfo.capital },
+                { icon: <Languages size={11} />, label: "Language", value: countryInfo.languages[0] || "N/A" },
+              ].map(item => (
+                <div key={item.label} className="flex-1 flex flex-col items-center justify-center py-2 px-1 gap-0.5 min-w-0">
+                  <span className="text-accent-cyan/70">{item.icon}</span>
+                  <span className="text-[8px] text-text-muted uppercase tracking-wide leading-none">{item.label}</span>
+                  <span className="text-[10px] font-semibold text-text-primary truncate w-full text-center px-0.5 leading-tight">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Ribbon skeleton */
+            <div className="flex border-b border-border-subtle bg-bg-elevated/40 divide-x divide-border-subtle">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex-1 py-3 flex flex-col items-center gap-1.5">
+                  <div className="skeleton h-2 w-6 rounded" />
+                  <div className="skeleton h-3 w-10 rounded" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Summary strip toggle ── */}
+        <button
+          onClick={() => setSummaryCollapsed(c => !c)}
+          className="flex items-center justify-center gap-1 w-full py-1 text-text-muted/40 hover:text-text-muted/70 transition-colors bg-bg-card border-b border-border/30 flex-shrink-0"
+          aria-label={summaryCollapsed ? "Expand summary" : "Collapse summary"}
+        >
+          <ChevronDown
+            size={13}
+            className={`transition-transform duration-300 ${summaryCollapsed ? "rotate-180" : ""}`}
+          />
+          <span className="text-[9px] uppercase tracking-widest font-medium">
+            {summaryCollapsed ? "Show summary" : "Hide summary"}
+          </span>
+        </button>
 
         {/* ── Summary strip: chips + news headlines ── */}
-        <SummaryStrip
-          countryInfo={countryInfo}
-          countryCode={country.code}
-          countryName={country.name}
-          marketQuote={marketData?.[country.code]}
-        />
+        <div
+          className="overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out"
+          style={{ height: summaryCollapsed ? 0 : undefined }}
+        >
+          <SummaryStrip
+            countryInfo={countryInfo}
+            countryCode={country.code}
+            countryName={country.name}
+            marketQuote={marketData?.[country.code]}
+          />
+        </div>
 
         {/* ── Tabs ── */}
         <div

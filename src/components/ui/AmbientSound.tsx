@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Volume2, VolumeX } from "lucide-react";
-import { setSoundEnabled, setSharedAudioCtx } from "@/lib/sound-effects";
+import { Volume2, VolumeX, MousePointerClick } from "lucide-react";
+import { setClicksEnabled, setSharedAudioCtx } from "@/lib/sound-effects";
 
 // ─── Pure-oscillator drone ────────────────────────────────────────────────────
 // Two detuned sines (60Hz + 63.3Hz) create a natural beating wave.
@@ -55,10 +55,11 @@ function buildDrone(ctx: AudioContext): { master: GainNode; stop: () => void } {
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function AmbientSound() {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [clicksOn, setClicksOn]   = useState(true);
   const ctxRef   = useRef<AudioContext | null>(null);
   const droneRef = useRef<{ master: GainNode; stop: () => void } | null>(null);
 
-  const toggle = useCallback(() => {
+  const toggleAmbient = useCallback(() => {
     if (isPlaying) {
       // ── Fade out then tear down ──────────────────────────────────────────
       const ctx   = ctxRef.current;
@@ -77,47 +78,65 @@ export default function AmbientSound() {
           setSharedAudioCtx(null);
         }, 1700);
       }
-      setSoundEnabled(false);
       setIsPlaying(false);
 
     } else {
       // ── MUST be synchronous in the click handler ─────────────────────────
-      // new AudioContext() here — inside onClick — so the browser grants audio.
       const ctx = new AudioContext();
       ctxRef.current = ctx;
 
-      // resume() is also called synchronously; nodes are built inside .then()
-      // so they're created on a live, running context timeline.
       ctx.resume().then(() => {
         const drone = buildDrone(ctx);
         droneRef.current = drone;
 
         const g = drone.master.gain;
-        const t = ctx.currentTime;           // ctx is running now
+        const t = ctx.currentTime;
         g.setValueAtTime(0, t);
         g.linearRampToValueAtTime(0.85, t + 3.0);
 
         // Share the confirmed-running context so click effects can piggyback
         setSharedAudioCtx(ctx);
       });
-      // (no .catch — if resume fails the button just won't make sound; state
-      //  correctly reflects user intent so they can retry)
 
-      setSoundEnabled(true);
       setIsPlaying(true);
     }
   }, [isPlaying]);
 
+  const toggleClicks = useCallback(() => {
+    const next = !clicksOn;
+    setClicksOn(next);
+    setClicksEnabled(next);
+  }, [clicksOn]);
+
   return (
-    <button
-      onClick={toggle}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card/80 backdrop-blur-sm border border-border-subtle hover:border-hud-border transition-all text-text-muted hover:text-text-primary"
-      title={isPlaying ? "Mute ambient sound" : "Play Earth ambient sound"}
-    >
-      {isPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
-      <span className="text-[11px] hidden sm:inline">
-        {isPlaying ? "Earth Ambience" : "Sound Off"}
-      </span>
-    </button>
+    <div className="flex items-center gap-1.5">
+      {/* Ambient drone toggle */}
+      <button
+        onClick={toggleAmbient}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card/80 backdrop-blur-sm border border-border-subtle hover:border-hud-border transition-all text-text-muted hover:text-text-primary"
+        title={isPlaying ? "Mute ambient sound" : "Play Earth ambient sound"}
+      >
+        {isPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        <span className="text-[11px] hidden sm:inline">
+          {isPlaying ? "Ambience" : "Ambience"}
+        </span>
+      </button>
+
+      {/* Click sounds toggle */}
+      <button
+        onClick={toggleClicks}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card/80 backdrop-blur-sm border transition-all ${
+          clicksOn
+            ? "border-border-subtle hover:border-hud-border text-text-muted hover:text-text-primary"
+            : "border-border-subtle text-text-muted/40 hover:text-text-muted"
+        }`}
+        title={clicksOn ? "Mute click sounds" : "Enable click sounds"}
+      >
+        <MousePointerClick size={16} />
+        <span className="text-[11px] hidden sm:inline">
+          Clicks
+        </span>
+      </button>
+    </div>
   );
 }
