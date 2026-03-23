@@ -69,13 +69,6 @@ const COUNTRY_TZ: Record<string, string> = {
   ZA: "Africa/Johannesburg",  ZM: "Africa/Lusaka",        ZW: "Africa/Harare",
 };
 
-function fmtPop(n: number): string {
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
-  if (n >= 1e3) return Math.round(n / 1e3) + "K";
-  return n.toString();
-}
-
 function timeAgo(dateStr: string): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "";
@@ -164,12 +157,6 @@ export default function SummaryStrip({ countryInfo, countryCode, countryName, ma
 
   type Chip = { icon: string; label: string; value: string; change?: number };
   const chips: Chip[] = [
-    countryInfo?.capital
-      ? { icon: "🏛", label: "Capital", value: countryInfo.capital }
-      : null,
-    countryInfo?.population
-      ? { icon: "👥", label: "Population", value: fmtPop(countryInfo.population) }
-      : null,
     gdp
       ? { icon: "💰", label: "GDP", value: gdp }
       : null,
