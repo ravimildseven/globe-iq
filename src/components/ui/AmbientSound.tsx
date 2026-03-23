@@ -111,7 +111,7 @@ export default function AmbientSound() {
   return (
     <button
       onClick={toggle}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card/80 backdrop-blur-sm border border-border-subtle hover:border-hud-border transition-all text-text-muted hover:text-text-primary"
+      className="flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-lg bg-bg-card/80 backdrop-blur-sm border border-border-subtle hover:border-hud-border transition-all text-text-muted hover:text-text-primary"
       title={isPlaying ? "Mute ambient sound" : "Play Earth ambient sound"}
     >
       {isPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}

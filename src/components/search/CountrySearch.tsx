@@ -111,7 +111,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
       <button
         onClick={() => setOpen(true)}
         aria-label="Search countries (⌘K)"
-        className="flex items-center gap-2 glass rounded-full px-3.5 py-1.5
+        className="flex items-center gap-2 glass rounded-full px-3.5 py-1.5 min-h-[44px]
                    text-text-muted hover:text-text-primary transition-colors
                    border border-border hover:border-accent-amber/40
                    hover:shadow-[0_0_12px_rgba(245,158,11,0.15)] group"

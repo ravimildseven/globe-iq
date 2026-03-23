@@ -40,7 +40,7 @@ export default function ThemeToggle() {
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${LABELS[next]} theme`}
       title={`${LABELS[current]} theme — click for ${LABELS[next]}`}
-      className="flex items-center gap-1.5 glass rounded-full px-2.5 py-1.5
+      className="flex items-center gap-1.5 glass rounded-full px-2.5 py-1.5 min-h-[44px]
                  text-text-muted hover:text-text-primary transition-all duration-200
                  hover:border-accent-amber/30
                  hover:shadow-[0_0_12px_rgba(245,158,11,0.15)]"

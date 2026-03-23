@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight,
   Users, Building2, Ruler, Languages,
@@ -129,6 +129,43 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
     if (el) setIndicatorStyle({ left: el.offsetLeft, width: el.offsetWidth });
   }, [activeTab]);
 
+  /* ── Swipe-down-to-close (mobile) ── */
+  const panelRef           = useRef<HTMLElement>(null);
+  const touchStartY        = useRef(0);
+  const touchStartPanelTop = useRef(0);
+  const swipeDeltaRef      = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current        = e.touches[0].clientY;
+    touchStartPanelTop.current = panelRef.current?.getBoundingClientRect().top ?? 0;
+    swipeDeltaRef.current      = 0;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    // Only activate swipe-to-close when gesture starts within top 72px of panel
+    const relY = touchStartY.current - touchStartPanelTop.current;
+    if (relY > 72) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy <= 0) return;
+    swipeDeltaRef.current = dy;
+    if (panelRef.current) {
+      panelRef.current.style.transition = "none";
+      panelRef.current.style.transform  = `translateY(${dy}px)`;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (swipeDeltaRef.current > 80) {
+      onClose();
+    } else {
+      swipeDeltaRef.current = 0;
+      if (panelRef.current) {
+        panelRef.current.style.transition = "transform 0.3s ease";
+        panelRef.current.style.transform  = "";
+      }
+    }
+  }, [onClose]);
+
   const hasConflicts = (conflictsDatabase[country.code]?.length ?? 0) > 0;
   const showPhoto    = heroImageUrl && heroLoaded;
 
@@ -140,10 +177,32 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         onClick={onClose}
       />
 
-      <aside className="panel-enter fixed right-0 top-0 h-[100dvh] sm:h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card">
+      <aside
+        ref={panelRef}
+        className="panel-enter fixed right-0 top-0 h-[100dvh] sm:h-full w-full sm:w-[440px] z-50 flex flex-col bg-bg-card"
+        style={{ maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 8px)" }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
 
-        {/* Safe-area spacer — iOS status bar pushes content down on mobile */}
-        <div className="sm:hidden flex-shrink-0" style={{ height: "env(safe-area-inset-top, 0px)" }} />
+        {/* ── Mobile top strip: drag handle + close button ── */}
+        <div
+          className="sm:hidden flex-shrink-0 flex items-center justify-center relative bg-bg-card"
+          style={{ paddingTop: "max(env(safe-area-inset-top, 12px), 12px)", paddingBottom: 8 }}
+        >
+          {/* iOS-style drag handle pill */}
+          <div className="w-9 h-1 rounded-full bg-text-muted/30" />
+          {/* Close button — 44×44 tap target */}
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 glass rounded-xl
+                       flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         {/* ── Hero section ── */}
         <div className="relative overflow-hidden flex-shrink-0" style={{ height: 170 }}>
@@ -192,10 +251,10 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
             />
           )}
 
-          {/* Close button — always top-right */}
+          {/* Close button — desktop only (mobile uses top strip) */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-4 z-10 w-8 h-8 glass rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+            className="absolute top-3 right-4 z-10 w-11 h-11 glass rounded-xl hidden sm:flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
             aria-label="Close"
           >
             <X size={16} />

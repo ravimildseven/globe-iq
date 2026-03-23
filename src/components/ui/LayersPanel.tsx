@@ -109,7 +109,7 @@ export default function LayersPanel({ activeLayer, onLayerChange }: LayersPanelP
         onClick={() => setOpen(v => !v)}
         title="Map Layers"
         aria-label="Toggle map layers"
-        className={`zoom-btn w-9 h-9 glass rounded-xl glow-amber flex items-center justify-center transition-colors
+        className={`zoom-btn w-11 h-11 glass rounded-xl glow-amber flex items-center justify-center transition-colors
           ${open ? "text-accent-amber" : "text-text-muted hover:text-accent-amber"}`}
       >
         <Layers size={15} />

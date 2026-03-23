@@ -851,10 +851,10 @@ function EarthGlobe({
   });
 
   // ── Track pointer-down position to suppress drag-as-click ──────────────────
-  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
+  const pointerDownPos = useRef<{ x: number; y: number; time: number; pointerType: string } | null>(null);
 
   const handlePointerDown = useCallback((e: any) => {
-    pointerDownPos.current = { x: e.clientX, y: e.clientY };
+    pointerDownPos.current = { x: e.clientX, y: e.clientY, time: Date.now(), pointerType: e.pointerType ?? "" };
   }, []);
 
   // ── Pointer move → find country by polygon ──────────────────────────────────
@@ -883,11 +883,15 @@ function EarthGlobe({
   // ── Click → select country ──────────────────────────────────────────────────
   const handleClick = useCallback((e: any) => {
     if (!e.point) return;
-    // Suppress if the pointer drifted more than 5 px — it was a drag, not a tap
+    // Suppress drag-as-click: use 12px threshold for touch, 5px for mouse/pen
     if (pointerDownPos.current) {
+      const isTouch = pointerDownPos.current.pointerType === "touch";
+      const dragThreshold = isTouch ? 12 : 5;
       const dx = Math.abs(e.clientX - pointerDownPos.current.x);
       const dy = Math.abs(e.clientY - pointerDownPos.current.y);
-      if (dx > 5 || dy > 5) return;
+      if (dx > dragThreshold || dy > dragThreshold) return;
+      // Ignore sub-120ms touch presses — treat as swipe-start
+      if (isTouch && Date.now() - pointerDownPos.current.time < 120) return;
     }
     onInteractionStart();
     const { lat, lng } = spherePointToLatLng(e.point);
@@ -1248,7 +1252,7 @@ export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, f
   const showTooltip = hoveredCountry && hoveredCountry.code !== selectedCountry?.code;
 
   return (
-    <div className="w-full h-full" onPointerDown={stopRotation} onMouseMove={handleMouseMove}>
+    <div className="w-full h-full" onPointerDown={stopRotation} onMouseMove={handleMouseMove} style={{ touchAction: "none" }}>
       <Canvas
         camera={{ position: [0, 0.25, 2.7], fov: 43 }}
         gl={{ antialias: true, alpha: true }}
