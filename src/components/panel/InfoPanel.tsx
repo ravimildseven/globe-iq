@@ -13,6 +13,7 @@ import GeneralTab from "./tabs/GeneralTab";
 import NewsTab from "./tabs/NewsTab";
 import EconomyTab from "./tabs/EconomyTab";
 import ConflictsTab from "./tabs/ConflictsTab";
+import SummaryStrip from "./SummaryStrip";
 
 interface InfoPanelProps {
   country: CountryCentroid;
@@ -279,6 +280,14 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
             ))}
           </div>
         )}
+
+        {/* ── Summary strip: chips + news headlines ── */}
+        <SummaryStrip
+          countryInfo={countryInfo}
+          countryCode={country.code}
+          countryName={country.name}
+          marketQuote={marketData?.[country.code]}
+        />
 
         {/* ── Tabs ── */}
         <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0">
