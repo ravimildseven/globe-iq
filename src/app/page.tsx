@@ -6,6 +6,8 @@ import { useTheme } from "next-themes";
 import { CountryCentroid, countryCentroids } from "@/lib/countries-geo";
 import { flagEmoji } from "@/lib/flag";
 import InfoPanel from "@/components/panel/InfoPanel";
+import TerritoryPanel from "@/components/panel/TerritoryPanel";
+import { Territory, TERRITORY_BY_CODE } from "@/lib/territoriesData";
 import AmbientSound from "@/components/ui/AmbientSound";
 import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
@@ -131,8 +133,9 @@ export default function Home() {
   // Use "dark" on SSR; swap to real theme only after client hydration
   const globeTheme = themeMounted && resolvedTheme === "light" ? "light" : "dark";
 
-  const [selectedCountry, setSelectedCountry] = useState<CountryCentroid | null>(null);
-  const [flyToTarget, setFlyToTarget]         = useState<CountryCentroid | null>(null);
+  const [selectedCountry, setSelectedCountry]   = useState<CountryCentroid | null>(null);
+  const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
+  const [flyToTarget, setFlyToTarget]           = useState<CountryCentroid | null>(null);
   const [flyHome, setFlyHome]                 = useState(false);
   const [zoomDelta, setZoomDelta] = useState(0);
   const [marketData, setMarketData] = useState<MarketData>({});
@@ -253,9 +256,17 @@ export default function Home() {
 
   const nightLightsMode = activeLayer === "nightlights";
 
+  const handleTerritorySelect = useCallback((territory: Territory) => {
+    playSelectSound();
+    setFlyToTarget(null);
+    setSelectedCountry(null);
+    setSelectedTerritory(territory);
+  }, []);
+
   const handleCountrySelect = useCallback((country: CountryCentroid) => {
     playSelectSound();
     setFlyToTarget(null);         // clear search beacon
+    setSelectedTerritory(null);
     setSelectedCountry(country);
     setRecentCountries(prev => {
       const next = [country, ...prev.filter(c => c.code !== country.code)].slice(0, 5);
@@ -284,6 +295,7 @@ export default function Home() {
   const handleClose = useCallback(() => {
     playDeselectSound();
     setSelectedCountry(null);
+    setSelectedTerritory(null);
     setFlyToTarget(null);
     setFlyHome(true);           // pull camera back to home distance
   }, []);
@@ -358,10 +370,11 @@ export default function Home() {
       </header>
 
       {/* ── Globe ── */}
-      <div className={`absolute inset-0 transition-all duration-500 ${selectedCountry ? "sm:right-[440px]" : ""}`}>
+      <div className={`absolute inset-0 transition-all duration-500 ${(selectedCountry || selectedTerritory) ? "sm:right-[440px]" : ""}`}>
         <Globe
           selectedCountry={selectedCountry}
           onCountrySelect={handleCountrySelect}
+          onTerritorySelect={handleTerritorySelect}
           flyToTarget={flyToTarget}
           flyHome={flyHome}
           onFlyHomeDone={() => setFlyHome(false)}
@@ -425,6 +438,18 @@ export default function Home() {
         />
       )}
 
+      {/* ── Territory panel ── */}
+      {selectedTerritory && !selectedCountry && (
+        <TerritoryPanel
+          territory={selectedTerritory}
+          onClose={handleClose}
+          onParentCountryClick={(code) => {
+            const parent = countryCentroids.find(c => c.code === code);
+            if (parent) handleCountrySelect(parent);
+          }}
+        />
+      )}
+
       {/* ── Bottom search dock — floating above HUD bar ── */}
       <div className="fixed left-1/2 -translate-x-1/2 z-40
                       flex flex-col items-center gap-2 pointer-events-none"
@@ -476,7 +501,9 @@ export default function Home() {
           <span className="text-[11px] text-text-muted">
             {selectedCountry
               ? `Viewing · ${selectedCountry.name}`
-              : activeLayer
+              : selectedTerritory
+                ? `Viewing · ${selectedTerritory.name}`
+                : activeLayer
                 ? `Layer · ${activeLayer.charAt(0).toUpperCase() + activeLayer.slice(1)}`
                 : "Live · Drag to rotate · Click to explore"}
           </span>

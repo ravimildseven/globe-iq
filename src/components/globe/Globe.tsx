@@ -9,6 +9,7 @@ import {
   loadCountryShapes, findCountryAtPoint, spherePointToLatLng,
   type CountryShape,
 } from "@/lib/world-geo";
+import { TERRITORY_BY_CODE, type Territory } from "@/lib/territoriesData";
 import { CAPITAL_CITIES } from "@/lib/capitals";
 import { playHoverSound } from "@/lib/sound-effects";
 
@@ -20,6 +21,7 @@ const TEX_NIGHT     = "https://unpkg.com/three-globe@2.34.1/example/img/earth-ni
 interface GlobeProps {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
+  onTerritorySelect?: (territory: Territory) => void;
   flyToTarget?: CountryCentroid | null;
   flyHome?: boolean;
   onFlyHomeDone?: () => void;
@@ -786,10 +788,11 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onInteractionStart, onHoverCountry, onDoubleClickZoom, sunDir, theme, overlayColors, nightLightsMode,
+  selectedCountry, onCountrySelect, onTerritorySelect, onInteractionStart, onHoverCountry, onDoubleClickZoom, sunDir, theme, overlayColors, nightLightsMode,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
+  onTerritorySelect?: (territory: Territory) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
   onDoubleClickZoom: (dir: THREE.Vector3) => void;
@@ -896,11 +899,14 @@ function EarthGlobe({
     if (shape) {
       const c = countryCentroids.find(x => x.code === shape.code);
       if (c) { onCountrySelect(c); return; }
+      // Territory — no sovereign centroid, check territory registry
+      const territory = TERRITORY_BY_CODE.get(shape.code);
+      if (territory) { onTerritorySelect?.(territory); return; }
     }
     // Fallback: nearest centroid
     const nearest = findNearestCountry(e.point);
     if (nearest) onCountrySelect(nearest);
-  }, [shapes, onCountrySelect, onInteractionStart]);
+  }, [shapes, onCountrySelect, onTerritorySelect, onInteractionStart]);
 
   // ── Double-click → zoom in toward clicked point ─────────────────────────────
   const handleDoubleClick = useCallback((e: any) => {
@@ -1132,7 +1138,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 // ─── Scene root — owns shared sun direction ───────────────────────────────────
 function SceneRoot({
   selectedCountry, flyToTarget, flyHome, onFlyHomeDone,
-  onCountrySelect, onInteractionStart, onHoverCountry,
+  onCountrySelect, onTerritorySelect, onInteractionStart, onHoverCountry,
   zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove,
 }: {
   selectedCountry: CountryCentroid | null;
@@ -1140,6 +1146,7 @@ function SceneRoot({
   flyHome?: boolean;
   onFlyHomeDone?: () => void;
   onCountrySelect: (c: CountryCentroid) => void;
+  onTerritorySelect?: (territory: Territory) => void;
   onInteractionStart: () => void;
   onHoverCountry: (c: CountryCentroid | null) => void;
   zoomDelta: number;
@@ -1185,6 +1192,7 @@ function SceneRoot({
       <EarthGlobe
         selectedCountry={selectedCountry}
         onCountrySelect={onCountrySelect}
+        onTerritorySelect={onTerritorySelect}
         onInteractionStart={onInteractionStart}
         onHoverCountry={onHoverCountry}
         onDoubleClickZoom={handleDoubleClickZoom}
@@ -1228,7 +1236,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, flyHome, onFlyHomeDone, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, onTerritorySelect, flyToTarget, flyHome, onFlyHomeDone, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -1261,6 +1269,7 @@ export default function Globe({ selectedCountry, onCountrySelect, flyToTarget, f
             flyHome={flyHome}
             onFlyHomeDone={onFlyHomeDone}
             onCountrySelect={onCountrySelect}
+            onTerritorySelect={onTerritorySelect}
             onInteractionStart={stopRotation}
             onHoverCountry={(c) => { setHoveredCountry(c); if (c) playHoverSound(); }}
             zoomDelta={zoomDelta}
