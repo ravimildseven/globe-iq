@@ -420,7 +420,7 @@ export default function Home() {
       )}
 
       {/* ── Bottom search dock — floating above HUD bar ── */}
-      <div className="absolute bottom-[62px] left-1/2 -translate-x-1/2 z-40
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+62px)] left-1/2 -translate-x-1/2 z-40
                       flex flex-col items-center gap-2 pointer-events-none">
 
         {/* Recently viewed chips */}
