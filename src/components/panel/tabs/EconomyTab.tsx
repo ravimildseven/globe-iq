@@ -131,6 +131,16 @@ function Skeletons() {
   );
 }
 
+// ─── Country → exchange mapping ──────────────────────────────────────────────
+const COUNTRY_EXCHANGE: Record<string, string> = {
+  US: "nyse", CA: "nyse",
+  GB: "lse",  IE: "lse",
+  JP: "tse",
+  CN: "sse",  TW: "sse",
+  IN: "bse",
+  AU: "asx",  NZ: "asx",
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function EconomyTab({
   countryCode,
@@ -143,6 +153,20 @@ export default function EconomyTab({
 }) {
   const [loading, setLoading]   = useState(true);
   const [result, setResult]     = useState<EconomyResponse | null>(null);
+
+  // ── Exchange status for this country's market ──────────────────────────
+  const [mktStatus, setMktStatus] = useState<ExchangeStatus | null>(() => {
+    const id = COUNTRY_EXCHANGE[countryCode.toUpperCase()];
+    return id ? (getExchangeStatuses().find(s => s.id === id) ?? null) : null;
+  });
+  useEffect(() => {
+    const id = COUNTRY_EXCHANGE[countryCode.toUpperCase()];
+    if (!id) { setMktStatus(null); return; }
+    const update = () => setMktStatus(getExchangeStatuses().find(s => s.id === id) ?? null);
+    update();
+    const timer = setInterval(update, 60_000);
+    return () => clearInterval(timer);
+  }, [countryCode]);
 
   const fetchEconomy = useCallback(async () => {
     setLoading(true);
@@ -220,9 +244,22 @@ export default function EconomyTab({
               </span>
               <span className="text-[9px] text-text-muted/50 font-mono">{marketQuote.ticker}</span>
             </div>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">
-              LIVE
-            </span>
+            {mktStatus ? (
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                mktStatus.status === "open"  ? "bg-accent-green/10 text-accent-green" :
+                mktStatus.status === "pre"   ? "bg-accent-amber/10 text-accent-amber" :
+                mktStatus.status === "post"  ? "bg-accent-amber/10 text-accent-amber" :
+                                               "bg-accent-red/10 text-accent-red"
+              }`}>
+                {mktStatus.status === "open" ? "LIVE" :
+                 mktStatus.status === "pre"  ? "PRE"  :
+                 mktStatus.status === "post" ? "POST" : "CLOSED"}
+              </span>
+            ) : (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">
+                LIVE
+              </span>
+            )}
           </div>
           <div className="flex items-end justify-between">
             <p className="text-2xl font-bold text-text-primary font-mono">

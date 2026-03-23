@@ -19,6 +19,7 @@ import {
 } from "@/lib/travelData";
 import { getCountryTimezone } from "@/lib/country-timezones";
 import { useHomeCountry, HOME_COUNTRY_LABELS } from "@/lib/homeCountry";
+import { TOP_PLACES } from "@/lib/top-places";
 
 // ─── Currency codes per home country ─────────────────────────────────────────
 const HOME_CURRENCY: Record<string, string> = {
@@ -70,31 +71,29 @@ function langLabel(t: LanguageTip | undefined): { text: string; cls: string } {
 }
 
 /**
- * Returns the UTC-offset difference between the given IANA timezone and the
- * user's local timezone (positive = destination is ahead of user).
+ * Returns the UTC-offset difference between destTz and sourceTz.
+ * Positive = destination is ahead of source (home country).
  */
-function getTimeDiff(ianaTz: string): { hours: number; label: string } | null {
+function getTimeDiff(destTz: string, sourceTz: string): { hours: number; label: string } | null {
   try {
     const now = new Date();
-    const destParts = new Intl.DateTimeFormat("en", {
-      timeZone: ianaTz,
-      timeZoneName: "shortOffset",
-    }).formatToParts(now);
-    const destOffsetStr = destParts.find(p => p.type === "timeZoneName")?.value ?? "GMT+0";
-    const parseGMT = (s: string) => {
+    const parseOffset = (tz: string): number => {
+      const parts = new Intl.DateTimeFormat("en", {
+        timeZone: tz,
+        timeZoneName: "shortOffset",
+      }).formatToParts(now);
+      const s = parts.find(p => p.type === "timeZoneName")?.value ?? "GMT+0";
       const m = s.match(/GMT([+-])(\d+)(?::(\d+))?/);
       if (!m) return 0;
       return (m[1] === "+" ? 1 : -1) * (parseInt(m[2]) * 60 + parseInt(m[3] ?? "0"));
     };
-    const destOffsetMins  = parseGMT(destOffsetStr);
-    const localOffsetMins = -now.getTimezoneOffset(); // JS returns negative of actual offset
-    const diffMins = destOffsetMins - localOffsetMins;
+    const diffMins = parseOffset(destTz) - parseOffset(sourceTz);
     const hrs = diffMins / 60;
-    if (hrs === 0) return { hours: 0, label: "Same time as you" };
+    if (hrs === 0) return { hours: 0, label: "Same time zone" };
     const abs  = Math.abs(hrs);
     const frac = abs % 1 !== 0 ? abs.toFixed(1) : abs.toString();
     const dir  = hrs > 0 ? "ahead" : "behind";
-    return { hours: hrs, label: `${frac}h ${dir} of you` };
+    return { hours: hrs, label: `${frac}h ${dir} of home` };
   } catch {
     return null;
   }
@@ -146,13 +145,14 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
   // ── Live time difference ──────────────────────────────────────────────────
   const [timeDiff, setTimeDiff] = useState<{ hours: number; label: string } | null>(null);
   useEffect(() => {
-    const tz = getCountryTimezone(code)?.primary;
-    if (!tz) { setTimeDiff(null); return; }
-    const compute = () => setTimeDiff(getTimeDiff(tz));
+    const destTz   = getCountryTimezone(code)?.primary;
+    const sourceTz = getCountryTimezone(homeCountry)?.primary;
+    if (!destTz || !sourceTz) { setTimeDiff(null); return; }
+    const compute = () => setTimeDiff(getTimeDiff(destTz, sourceTz));
     compute();
     const id = setInterval(compute, 60_000);
     return () => clearInterval(id);
-  }, [code]);
+  }, [code, homeCountry]);
 
   // ── Live exchange rate (home currency → destination currency) ─────────────
   const [rateLabel, setRateLabel] = useState<string>("");
@@ -327,6 +327,28 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Top Places to Visit ── */}
+      {TOP_PLACES[code] && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">📍</span>
+            <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+              Top Places to Visit
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {TOP_PLACES[code].map((place) => (
+              <span
+                key={place}
+                className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 text-xs text-blue-300"
+              >
+                {place}
+              </span>
+            ))}
           </div>
         </div>
       )}
