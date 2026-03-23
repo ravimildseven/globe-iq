@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 import type { Quote } from "yahoo-finance2/modules/quote";
 import { COUNTRY_INDEX, MarketData } from "@/lib/marketIndices";
 
 export const revalidate = 300;
+
+const yahooFinance = new YahooFinance();
 
 export async function GET() {
   const entries = Object.entries(COUNTRY_INDEX);
@@ -12,7 +14,6 @@ export async function GET() {
   const data: MarketData = {};
 
   try {
-    // yahoo-finance2 handles crumb/cookie auth automatically
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const resultsArr = (await yahooFinance.quote(tickers, { return: "array" } as any)) as Quote[];
 
