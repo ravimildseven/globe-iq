@@ -9,7 +9,7 @@ import {
   loadCountryShapes, findCountryAtPoint, spherePointToLatLng,
   type CountryShape,
 } from "@/lib/world-geo";
-import { TERRITORY_BY_CODE, type Territory } from "@/lib/territoriesData";
+import { TERRITORIES, TERRITORY_BY_CODE, type Territory } from "@/lib/territoriesData";
 import { CAPITAL_CITIES } from "@/lib/capitals";
 import { playHoverSound } from "@/lib/sound-effects";
 
@@ -903,7 +903,17 @@ function EarthGlobe({
       const territory = TERRITORY_BY_CODE.get(shape.code);
       if (territory) { onTerritorySelect?.(territory); return; }
     }
-    // Fallback: nearest centroid
+    // Fallback: check territory proximity (great-circle) before sovereign centroid
+    const nearbyTerritory = TERRITORIES.reduce<{ t: (typeof TERRITORIES)[0] | null; d: number }>(
+      (best, t) => {
+        const dlat = lat - t.lat;
+        const dlng = lng - t.lng;
+        const d = Math.sqrt(dlat * dlat + dlng * dlng);
+        return d < best.d ? { t, d } : best;
+      },
+      { t: null, d: 10 } // 10° threshold
+    ).t;
+    if (nearbyTerritory) { onTerritorySelect?.(nearbyTerritory); return; }
     const nearest = findNearestCountry(e.point);
     if (nearest) onCountrySelect(nearest);
   }, [shapes, onCountrySelect, onTerritorySelect, onInteractionStart]);

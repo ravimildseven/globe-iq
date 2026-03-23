@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight,
+  X, Globe2, Newspaper, TrendingUp, Swords, ChevronRight, ChevronDown,
   Users, Building2, Ruler, Languages, Plane,
 } from "lucide-react";
 import { CountryCentroid } from "@/lib/countries-geo";
@@ -47,6 +47,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
   const [activeTab, setActiveTab]       = useState<TabId>("general");
   const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
   const [loadingInfo, setLoadingInfo]   = useState(true);
+  const [heroCollapsed, setHeroCollapsed] = useState(false);
   const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
   const tabBarRef                       = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -150,7 +151,10 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         <div className="sm:hidden flex-shrink-0" style={{ height: "env(safe-area-inset-top, 0px)" }} />
 
         {/* ── Hero section ── */}
-        <div className="relative overflow-hidden flex-shrink-0" style={{ height: 170 }}>
+        <div
+          className="relative overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out"
+          style={{ height: heroCollapsed ? 0 : 170 }}
+        >
 
           {/* Base gradient — always rendered */}
           <div
@@ -253,6 +257,21 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
             </div>
           </div>
         </div>
+
+        {/* ── Hero collapse toggle ── */}
+        <button
+          onClick={() => setHeroCollapsed(c => !c)}
+          className="flex items-center justify-center gap-1 w-full py-1 text-text-muted/40 hover:text-text-muted/70 transition-colors bg-bg-card border-b border-border/30 flex-shrink-0"
+          aria-label={heroCollapsed ? "Expand hero" : "Collapse hero"}
+        >
+          <ChevronDown
+            size={13}
+            className={`transition-transform duration-300 ${heroCollapsed ? "rotate-180" : ""}`}
+          />
+          <span className="text-[9px] uppercase tracking-widest font-medium">
+            {heroCollapsed ? "Show photo" : "Hide photo"}
+          </span>
+        </button>
 
         {/* ── Quick Facts ribbon ── */}
         {countryInfo && !loadingInfo ? (

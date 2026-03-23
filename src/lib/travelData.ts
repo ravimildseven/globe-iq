@@ -943,3 +943,275 @@ export const DEFAULT_KNOWN_FOR: KnownForItem[] = [
   { emoji: "🏛", label: "History" },
 ];
 export const DEFAULT_TOP_EXPERIENCE = "Explore the local culture and cuisine";
+
+// ─── Approximate flight time from Delhi (hours, non-stop or best route) ──────
+export const flightHoursFromDelhi: Record<string, number> = {
+  AE: 3,  TH: 6,  SG: 6,  MY: 7,  LK: 3,  MV: 3,  NP: 2,
+  JP: 9,  KR: 9,  CN: 7,  HK: 7,  TW: 7,  VN: 6,  ID: 8,
+  PH: 7,  AU: 13, NZ: 17, GB: 9,  FR: 9,  DE: 9,  IT: 9,
+  ES: 10, PT: 11, GR: 7,  TR: 6,  RU: 8,  US: 15, CA: 16,
+  MX: 17, BR: 18, ZA: 12, KE: 8,  ET: 7,  TZ: 9,  EG: 6,
+  MA: 9,  NG: 10, SA: 5,  QA: 4,  KW: 5,  BH: 5,  OM: 4,
+  JO: 5,  IL: 6,  PK: 2,  BD: 3,  MM: 4,  KH: 6,  LA: 6,
+  NL: 9,  BE: 10, CH: 9,  AT: 9,  SE: 10, NO: 11, DK: 10,
+  FI: 10, PL: 8,  CZ: 9,  HU: 8,  RO: 7,  HR: 8,  RS: 8,
+  BG: 7,  UA: 7,  BY: 8,  LT: 9,  LV: 9,  EE: 9,  IS: 11,
+  IE: 10, LU: 10, SK: 9,  SI: 9,  UZ: 4,  KZ: 6,  GE: 5,
+  AM: 5,  AZ: 5,  IR: 4,  IQ: 5,  SY: 5,  LB: 5,  PS: 5,
+  PE: 19, CO: 18, CL: 21, AR: 20, VE: 18, BO: 20, EC: 20,
+  IN: 0,  // Home
+};
+
+// ─── Language tips for Indian travellers ─────────────────────────────────────
+export type LanguageTip = "english-wide" | "english-limited" | "hindi-ok" | "local-only";
+export const languageTip: Record<string, LanguageTip> = {
+  US: "english-wide", GB: "english-wide", AU: "english-wide",
+  CA: "english-wide", NZ: "english-wide", SG: "english-wide",
+  IE: "english-wide", ZA: "english-wide", NG: "english-wide",
+  KE: "english-wide", GH: "english-wide", TZ: "english-wide",
+  UG: "english-wide", PH: "english-wide",
+  AE: "english-limited", QA: "english-limited", KW: "english-limited",
+  BH: "english-limited", SA: "english-limited", OM: "english-limited",
+  TH: "english-limited", MY: "english-limited", LK: "english-limited",
+  MV: "english-limited", ID: "english-limited", VN: "english-limited",
+  EG: "english-limited", MA: "english-limited", TN: "english-limited",
+  GR: "english-limited", TR: "english-limited",
+  NP: "hindi-ok", // Very similar to Hindi
+  JP: "local-only", CN: "local-only", KR: "local-only", RU: "local-only",
+  FR: "local-only", DE: "local-only", ES: "local-only", IT: "local-only",
+  PT: "local-only", PL: "local-only", CZ: "local-only", HU: "local-only",
+  RO: "local-only", HR: "local-only", RS: "local-only",
+};
+
+// ─── Popular destinations for Indian passport holders ─────────────────────────
+export const popularWithIndians = new Set<string>([
+  "AE", "TH", "SG", "MY", "LK", "MV", "NP", "US", "GB", "AU",
+  "FR", "DE", "IT", "JP", "ID", "VN", "TR", "KE", "TZ", "ZA",
+  "QA", "BH", "OM", "SA", "NZ", "CA", "KR",
+]);
+
+// ─── India reference data (for comparison stats) ──────────────────────────────
+export const INDIA_GDP_PER_CAPITA_USD = 2601;   // World Bank 2023
+export const INDIA_POPULATION = 1_428_627_663;  // 2023
+
+// ─── Multi-home-country visa data ─────────────────────────────────────────────
+// Nested: visaByHome[homeCode][destCode] = VisaStatus
+// Source: Henley Passport Index / IATA / gov travel advisories (2024)
+export const visaByHome: Record<string, Record<string, VisaStatus>> = {
+  IN: {
+    IN:"free", US:"required", GB:"required", FR:"required", DE:"required",
+    JP:"required", CN:"required", AU:"required", BR:"free", CA:"required",
+    ZA:"required", AE:"on-arrival", SG:"required", TH:"on-arrival", IT:"required",
+    ES:"required", MX:"free", ID:"free", NG:"on-arrival", EG:"on-arrival",
+    KE:"e-visa", TR:"e-visa", SA:"e-visa", AR:"free", NL:"required", SE:"required",
+    NZ:"e-visa", GR:"required", MY:"free", PH:"free", VN:"e-visa", LK:"e-visa",
+    NP:"free", MV:"on-arrival", QA:"on-arrival", KW:"required", BH:"on-arrival",
+    OM:"on-arrival", JO:"on-arrival", IL:"required", RU:"required", UA:"free",
+    TN:"on-arrival", GH:"on-arrival", ET:"on-arrival", TZ:"on-arrival",
+  },
+  US: {
+    US:"free", IN:"required", GB:"free", FR:"free", DE:"free", JP:"free",
+    CN:"required", AU:"free", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", SA:"required",
+    AR:"free", NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free",
+    PH:"free", VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free", TN:"free", GH:"free", TZ:"e-visa",
+  },
+  GB: {
+    GB:"free", IN:"required", US:"free", FR:"free", DE:"free", JP:"free",
+    CN:"required", AU:"free", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", SA:"required",
+    AR:"free", NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free",
+    PH:"free", VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free", TN:"free",
+  },
+  AU: {
+    AU:"free", IN:"required", US:"free", GB:"free", FR:"free", DE:"free",
+    JP:"free", CN:"required", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", AR:"free",
+    NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free", PH:"free",
+    VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free",
+  },
+  CA: {
+    CA:"free", IN:"required", US:"free", GB:"free", FR:"free", DE:"free",
+    JP:"free", CN:"required", AU:"free", BR:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", AR:"free",
+    NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free", PH:"free",
+    VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free",
+    RU:"required", UA:"free",
+  },
+  DE: {
+    DE:"free", IN:"required", US:"free", GB:"free", FR:"free", JP:"free",
+    CN:"required", AU:"free", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", SA:"required",
+    AR:"free", NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free",
+    PH:"free", VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free",
+  },
+  FR: {
+    FR:"free", IN:"required", US:"free", GB:"free", DE:"free", JP:"free",
+    CN:"required", AU:"free", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", SA:"required",
+    AR:"free", NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free",
+    PH:"free", VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free",
+    RU:"required", UA:"free",
+  },
+  JP: {
+    JP:"free", IN:"required", US:"free", GB:"free", FR:"free", DE:"free",
+    CN:"required", AU:"free", BR:"free", CA:"free", ZA:"free", AE:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", AR:"free",
+    NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free", PH:"free",
+    VN:"e-visa", LK:"e-visa", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free",
+  },
+  SG: {
+    SG:"free", IN:"required", US:"free", GB:"free", FR:"free", DE:"free",
+    JP:"free", CN:"on-arrival", AU:"free", BR:"free", CA:"free", ZA:"free",
+    AE:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"on-arrival", KE:"e-visa", TR:"free", AR:"free",
+    NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free", PH:"free",
+    VN:"free", LK:"free", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"free",
+    RU:"required", UA:"free",
+  },
+  AE: {
+    AE:"free", IN:"on-arrival", US:"free", GB:"free", FR:"free", DE:"free",
+    JP:"free", CN:"free", AU:"free", BR:"free", CA:"free", ZA:"free",
+    SG:"free", TH:"free", IT:"free", ES:"free", MX:"free", ID:"free",
+    NG:"on-arrival", EG:"free", KE:"e-visa", TR:"free", SA:"free",
+    AR:"free", NL:"free", SE:"free", NZ:"free", GR:"free", MY:"free",
+    PH:"free", VN:"free", LK:"on-arrival", NP:"on-arrival", MV:"on-arrival",
+    QA:"free", KW:"free", BH:"free", OM:"free", JO:"free", IL:"required",
+    RU:"required", UA:"free",
+  },
+};
+
+/** Convenience: get visa status from home → dest, falling back to IN-centric data */
+export function getVisaStatus(homeCode: string, destCode: string): VisaStatus {
+  return visaByHome[homeCode]?.[destCode]
+    ?? visaByHome["IN"]?.[destCode]
+    ?? visaForIndian[destCode]
+    ?? "required";
+}
+
+// ─── Multi-home-country flight hours ──────────────────────────────────────────
+// flightHoursByHome[homeCode][destCode] = hours
+export const flightHoursByHome: Record<string, Record<string, number>> = {
+  IN: {
+    AE:3,TH:6,SG:6,MY:7,LK:3,MV:3,NP:2,JP:9,KR:9,CN:7,HK:7,TW:7,VN:6,ID:8,
+    PH:7,AU:13,NZ:17,GB:9,FR:9,DE:9,IT:9,ES:10,PT:11,GR:7,TR:6,RU:8,US:15,
+    CA:16,MX:17,BR:18,ZA:12,KE:8,ET:7,TZ:9,EG:6,MA:9,NG:10,SA:5,QA:4,KW:5,
+    BH:5,OM:4,JO:5,IL:6,PK:2,BD:3,MM:4,KH:6,NL:9,BE:10,CH:9,AT:9,SE:10,
+    NO:11,DK:10,FI:10,PL:8,CZ:9,HU:8,RO:7,HR:8,UA:7,UZ:4,GE:5,AM:5,AZ:5,
+    IN:0,
+  },
+  US: {
+    GB:8,FR:10,DE:10,IT:11,ES:11,PT:9,GR:13,TR:12,AE:14,SG:19,JP:14,KR:14,
+    AU:20,NZ:17,CN:14,TH:18,IN:15,MX:4,CA:5,BR:10,AR:12,ZA:17,KE:15,EG:12,
+    MA:10,IL:13,SA:14,QA:14,NG:12,PH:18,VN:18,MY:19,SG:19,HK:16,TW:16,
+    GB:8,NL:10,BE:10,SE:10,NO:10,DK:10,FI:11,PL:11,CZ:11,HU:11,RO:12,
+    US:0,
+  },
+  GB: {
+    US:8,FR:2,DE:2,IT:3,ES:2,PT:2,GR:4,TR:4,AE:7,SG:14,JP:13,KR:12,AU:21,
+    NZ:24,CN:11,TH:12,IN:9,MX:11,CA:9,BR:11,AR:14,ZA:12,KE:9,EG:5,MA:4,
+    IL:5,SA:7,QA:6,NG:7,TZ:9,PH:14,VN:12,MY:13,HK:12,TW:13,NL:1,BE:1,
+    SE:2,NO:2,DK:2,FI:3,PL:3,CZ:2,HU:3,RO:3,UA:3,
+    GB:0,
+  },
+  AU: {
+    NZ:3,ID:6,SG:8,MY:8,TH:9,JP:10,KR:11,CN:11,HK:9,TW:11,PH:9,VN:9,
+    IN:13,AE:14,GB:21,US:20,CA:21,FR:22,DE:22,IT:22,ZA:12,KE:14,EG:15,
+    QA:14,SA:15,TR:14,GR:15,IL:15,MX:23,BR:21,AR:22,
+    AU:0,
+  },
+  CA: {
+    US:3,GB:9,FR:10,DE:10,IT:11,ES:11,MX:5,BR:10,AR:11,JP:13,KR:13,
+    CN:13,AU:17,NZ:16,IN:14,AE:14,SG:18,TH:17,KE:14,ZA:16,EG:12,IL:13,
+    CA:0,
+  },
+  DE: {
+    US:10,GB:2,FR:2,IT:2,ES:3,PT:3,GR:3,TR:4,AE:7,SG:13,JP:12,KR:12,AU:22,
+    NZ:24,CN:10,TH:11,IN:9,MX:12,CA:10,BR:12,AR:14,ZA:12,KE:8,EG:5,MA:4,
+    IL:4,SA:7,QA:6,NG:7,TZ:9,NL:1,BE:1,SE:2,NO:2,DK:2,FI:3,PL:2,CZ:1,HU:2,
+    DE:0,
+  },
+  FR: {
+    US:10,GB:2,DE:2,IT:2,ES:2,PT:2,GR:3,TR:4,AE:7,SG:13,JP:13,KR:13,AU:23,
+    CN:11,TH:12,IN:9,MX:11,CA:9,BR:10,AR:13,ZA:11,KE:8,EG:5,MA:3,
+    IL:5,SA:7,QA:6,NG:7,TZ:9,NL:1,BE:1,SE:3,NO:3,DK:3,FI:4,PL:3,CZ:2,
+    FR:0,
+  },
+  JP: {
+    US:14,GB:13,FR:13,DE:12,IT:13,AU:10,NZ:11,KR:2,CN:4,SG:7,TH:6,IN:9,
+    AE:10,CA:12,MX:15,BR:24,ZA:16,KE:14,EG:12,IL:12,SA:10,QA:10,PH:4,
+    VN:5,MY:7,HK:4,TW:3,ID:7,TZ:14,
+    JP:0,
+  },
+  SG: {
+    IN:6,MY:1,ID:2,TH:2,VN:3,PH:3,KH:2,AU:8,NZ:11,JP:7,KR:7,CN:5,HK:4,
+    TW:5,GB:14,FR:13,DE:13,AE:7,US:19,CA:18,ZA:13,KE:11,AU:8,
+    SG:0,
+  },
+  AE: {
+    IN:3,PK:3,BD:4,SG:7,MY:7,TH:7,LK:4,MV:4,JP:10,KR:10,CN:9,AU:14,
+    GB:7,FR:7,DE:7,IT:7,ES:8,GR:5,TR:4,EG:3,SA:2,QA:2,KW:2,BH:2,OM:3,
+    JO:3,IL:3,KE:6,TZ:7,ZA:10,NG:7,MA:8,US:14,CA:14,NZ:17,
+    AE:0,
+  },
+};
+
+/** Convenience: get flight hours from home → dest */
+export function getFlightHours(homeCode: string, destCode: string): number | null {
+  return flightHoursByHome[homeCode]?.[destCode]
+    ?? (homeCode === "IN" ? flightHoursFromDelhi[destCode] : null)
+    ?? null;
+}
+
+// ─── Popular destinations by home country ─────────────────────────────────────
+export const popularByHome: Record<string, Set<string>> = {
+  IN: popularWithIndians,
+  US: new Set(["GB","FR","IT","MX","CA","DE","ES","JP","AU","BR","DO","TH","IN","NZ","AE"]),
+  GB: new Set(["ES","FR","PT","GR","IT","DE","AU","US","TH","IN","MX","AE","ZA","NZ","JP"]),
+  AU: new Set(["ID","TH","US","GB","SG","NZ","JP","FR","IT","ES","DE","MY","VN","MV","AE"]),
+  CA: new Set(["US","GB","FR","MX","IT","DE","AU","JP","ES","TH","NZ","IN","AE","CR","CU"]),
+  DE: new Set(["ES","IT","TR","GR","AT","FR","HR","US","PT","TH","CN","AE","JP","NL","CZ"]),
+  FR: new Set(["ES","IT","PT","GR","US","GB","MA","TH","SB","DE","JP","AU","AE","MX","MU"]),
+  JP: new Set(["TH","TW","KR","HK","SG","VN","AU","US","HI","FR","IT","GB","DE","AE","ID"]),
+  SG: new Set(["MY","JP","AU","TH","KR","UK","ID","TW","VN","HK","FR","IT","US","NZ","MV"]),
+  AE: new Set(["IN","GB","US","TH","MY","ID","TZ","KE","ZA","QA","BH","OM","SA","EG","TR"]),
+};
+
+/** Convenience: is destCode popular from homeCode's perspective? */
+export function isPopularFrom(homeCode: string, destCode: string): boolean {
+  return (popularByHome[homeCode] ?? popularWithIndians).has(destCode);
+}
+
+// ─── Home country reference GDP and population data ───────────────────────────
+export const homeCountryData: Record<string, { gdpPerCapita: number; population: number; name: string; hub: string }> = {
+  IN: { gdpPerCapita: 2601,   population: 1_428_627_663, name: "India",          hub: "Delhi" },
+  US: { gdpPerCapita: 80_035, population: 335_893_238,   name: "United States",  hub: "New York" },
+  GB: { gdpPerCapita: 48_912, population: 67_596_281,    name: "United Kingdom", hub: "London" },
+  AU: { gdpPerCapita: 64_964, population: 26_439_111,    name: "Australia",      hub: "Sydney" },
+  CA: { gdpPerCapita: 52_722, population: 38_781_292,    name: "Canada",         hub: "Toronto" },
+  DE: { gdpPerCapita: 51_203, population: 83_294_633,    name: "Germany",        hub: "Frankfurt" },
+  FR: { gdpPerCapita: 44_408, population: 68_170_228,    name: "France",         hub: "Paris" },
+  JP: { gdpPerCapita: 33_950, population: 123_294_513,   name: "Japan",          hub: "Tokyo" },
+  SG: { gdpPerCapita: 88_447, population: 5_917_648,     name: "Singapore",      hub: "Singapore" },
+  AE: { gdpPerCapita: 48_952, population: 9_441_429,     name: "UAE",            hub: "Dubai" },
+};

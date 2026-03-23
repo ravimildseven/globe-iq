@@ -9,6 +9,7 @@
 
 let _ctx: AudioContext | null = null;
 let _unlocked = false;
+let _muted = false;
 
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -37,7 +38,7 @@ export function initAudio(): void {
 
 // AmbientSound can share its context
 export function setSharedAudioCtx(ctx: AudioContext | null): void { _ctx = ctx; }
-export function setSoundEnabled(_: boolean): void { /* kept for compat */ }
+export function setSoundEnabled(enabled: boolean): void { _muted = !enabled; }
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ function scheduleTone(
 }
 
 function withCtx(fn: (c: AudioContext) => void): void {
+  if (_muted) return;
   const c = getCtx();
   if (!c) return;
   if (c.state === "running") {

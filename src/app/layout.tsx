@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ThemeProvider from "@/providers/ThemeProvider";
 import AudioUnlock from "@/components/ui/AudioUnlock";
+import { HomeCountryProvider } from "@/lib/homeCountry";
+
 
 export const metadata: Metadata = {
   title: "GlobeIQ — World Intelligence",
@@ -52,8 +54,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ThemeProvider>
-          <AudioUnlock />
-          {children}
+          <HomeCountryProvider>
+            <AudioUnlock />
+            {children}
+          </HomeCountryProvider>
         </ThemeProvider>
       </body>
     </html>

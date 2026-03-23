@@ -14,6 +14,7 @@ import AboutPanel from "@/components/ui/AboutPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
 import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
+import HomeCountrySelector from "@/components/ui/HomeCountrySelector";
 import { playSelectSound, playDeselectSound, playZoomSound, playLayerToggleSound } from "@/lib/sound-effects";
 import { MarketData, marketHex, marketOpacity, COUNTRY_INDEX } from "@/lib/marketIndices";
 import { getExchangeStatuses, openMarketCount, ExchangeStatus } from "@/lib/market-hours";
@@ -477,7 +478,9 @@ export default function Home() {
 
         {/* Search pill + random-country button */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <CountrySearch onSelect={handleSearchFly} />
+          <HomeCountrySelector />
+          <CountrySearch onSelect={handleSearchFly} onTerritorySelect={handleTerritorySelect} />
+
           <button
             onClick={handleRandomCountry}
             title="Explore a random country"

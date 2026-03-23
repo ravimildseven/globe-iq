@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Search, X, MapPin } from "lucide-react";
 import { countryCentroids, CountryCentroid } from "@/lib/countries-geo";
+import { TERRITORIES, type Territory } from "@/lib/territoriesData";
 import { flagEmoji } from "@/lib/flag";
 
 // ─── Region label lookup ──────────────────────────────────────────────────────
@@ -36,27 +37,43 @@ const REGION: Record<string, string> = {
   SO:"East Africa",BO:"South America",ZM:"Southern Africa",
 };
 
+// ─── Unified result type ──────────────────────────────────────────────────────
+type SearchResult =
+  | { kind: "country"; data: CountryCentroid }
+  | { kind: "territory"; data: Territory };
+
 interface CountrySearchProps {
   onSelect: (country: CountryCentroid) => void;
+  onTerritorySelect?: (territory: Territory) => void;
 }
 
-export default function CountrySearch({ onSelect }: CountrySearchProps) {
+export default function CountrySearch({ onSelect, onTerritorySelect }: CountrySearchProps) {
   const [open, setOpen]               = useState(false);
   const [query, setQuery]             = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  const inputRef    = useRef<HTMLInputElement>(null);
-  const listRef     = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLInputElement>(null);
+  const listRef      = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
 
   // ─── Filter results ─────────────────────────────────────────────────────────
-  const results = query.trim().length === 0
-    ? countryCentroids.slice(0, 10)
-    : countryCentroids
-        .filter(c =>
-          c.name.toLowerCase().includes(query.toLowerCase()) ||
-          c.code.toLowerCase() === query.toLowerCase()
-        )
-        .slice(0, 10);
+  const results: SearchResult[] = query.trim().length === 0
+    ? countryCentroids.slice(0, 10).map(c => ({ kind: "country" as const, data: c }))
+    : [
+        ...countryCentroids
+          .filter(c =>
+            c.name.toLowerCase().includes(query.toLowerCase()) ||
+            c.code.toLowerCase() === query.toLowerCase()
+          )
+          .slice(0, 7)
+          .map(c => ({ kind: "country" as const, data: c })),
+        ...TERRITORIES
+          .filter(t =>
+            t.name.toLowerCase().includes(query.toLowerCase()) ||
+            t.code.toLowerCase() === query.toLowerCase()
+          )
+          .slice(0, 3)
+          .map(t => ({ kind: "territory" as const, data: t })),
+      ];
 
   // ─── ⌘K / Ctrl+K shortcut ──────────────────────────────────────────────────
   useEffect(() => {
@@ -99,11 +116,15 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
     }
   }, [results, highlighted]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = useCallback((country: CountryCentroid) => {
-    onSelect(country);
+  const handleSelect = useCallback((result: SearchResult) => {
+    if (result.kind === "territory") {
+      onTerritorySelect?.(result.data);
+    } else {
+      onSelect(result.data);
+    }
     setOpen(false);
     setQuery("");
-  }, [onSelect]);
+  }, [onSelect, onTerritorySelect]);
 
   return (
     <>
@@ -135,7 +156,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
             onClick={() => setOpen(false)}
           />
 
-          {/* Search panel — CSS media query moves it to top on touch devices */}
+          {/* Search panel */}
           <div
             className="search-modal fixed left-1/2 -translate-x-1/2 z-[70]
                        w-[520px] max-w-[calc(100vw-16px)]
@@ -163,7 +184,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                   value={query}
                   onChange={e => { setQuery(e.target.value); setHighlighted(0); }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Search any country…"
+                  placeholder="Search countries &amp; territories…"
                   className="flex-1 bg-transparent text-sm text-text-primary
                              outline-none placeholder:text-text-muted/40
                              caret-accent-amber"
@@ -195,16 +216,23 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                 {results.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-10 text-center">
                     <MapPin size={20} className="text-text-muted/30" />
-                    <p className="text-sm text-text-muted/50">No countries found for "{query}"</p>
+                    <p className="text-sm text-text-muted/50">No results found for &quot;{query}&quot;</p>
                   </div>
                 ) : (
-                  results.map((country, i) => {
+                  results.map((result, i) => {
                     const isActive = i === highlighted;
+                    const code = result.data.code;
+                    const name = result.data.name;
+                    const isTerritory = result.kind === "territory";
+                    const region = isTerritory
+                      ? (result.data as Territory).parentCountry
+                      : REGION[code];
+                    const flagCode = isTerritory ? (result.data as Territory).flag : undefined;
                     return (
                       <button
-                        key={country.code}
+                        key={`${result.kind}-${code}`}
                         ref={isActive ? highlightRef : null}
-                        onClick={() => handleSelect(country)}
+                        onClick={() => handleSelect(result)}
                         onMouseEnter={() => setHighlighted(i)}
                         className="w-full flex items-center gap-3 px-4 py-3 text-left
                                    transition-all duration-100 relative"
@@ -217,7 +245,7 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                       >
                         {/* Flag */}
                         <span className="text-xl w-7 flex-shrink-0 text-center leading-none">
-                          {flagEmoji(country.code)}
+                          {flagCode ?? flagEmoji(code)}
                         </span>
 
                         {/* Name + region */}
@@ -225,34 +253,42 @@ export default function CountrySearch({ onSelect }: CountrySearchProps) {
                           <p className={`text-sm font-semibold leading-tight transition-colors ${
                             isActive ? "text-accent-amber" : "text-text-primary"
                           }`}>
-                            {country.name}
+                            {name}
                           </p>
-                          {REGION[country.code] && (
+                          {region && (
                             <p className="text-[10px] text-text-muted/60 mt-0.5 leading-tight">
-                              {REGION[country.code]}
+                              {region}
                             </p>
                           )}
                         </div>
 
-                        {/* Code badge */}
-                        <span
-                          className={`flex-shrink-0 text-[10px] font-mono px-1.5 py-0.5
-                                      rounded-md border transition-colors ${
-                            isActive
-                              ? "text-accent-amber/80 border-accent-amber/30 bg-accent-amber/5"
-                              : "text-text-muted/50"
-                          }`}
-                          style={!isActive ? { borderColor: "var(--search-kbd-border)" } : undefined}
-                        >
-                          {country.code}
-                        </span>
+                        {/* Code badge + territory label */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {isTerritory && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full
+                                             bg-sky-500/15 text-sky-400 border border-sky-500/20">
+                              Territory
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] font-mono px-1.5 py-0.5
+                                        rounded-md border transition-colors ${
+                              isActive
+                                ? "text-accent-amber/80 border-accent-amber/30 bg-accent-amber/5"
+                                : "text-text-muted/50"
+                            }`}
+                            style={!isActive ? { borderColor: "var(--search-kbd-border)" } : undefined}
+                          >
+                            {code}
+                          </span>
+                        </div>
                       </button>
                     );
                   })
                 )}
               </div>
 
-              {/* Footer hint — keyboard shortcuts hidden on mobile */}
+              {/* Footer hint */}
               <div
                 className="flex items-center justify-between px-4 py-2.5"
                 style={{ borderTop: "1px solid var(--search-divider)" }}

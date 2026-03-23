@@ -1,7 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
-  visaForIndian,
   bestTime,
   currencyTip,
   knownFor,
@@ -9,8 +9,23 @@ import {
   DEFAULT_BEST_TIME,
   DEFAULT_CURRENCY_TIP,
   DEFAULT_KNOWN_FOR,
+  languageTip,
+  getVisaStatus,
+  getFlightHours,
+  isPopularFrom,
+  homeCountryData,
   type VisaStatus,
+  type LanguageTip,
 } from "@/lib/travelData";
+import { getCountryTimezone } from "@/lib/country-timezones";
+import { useHomeCountry, HOME_COUNTRY_LABELS } from "@/lib/homeCountry";
+
+// ─── Currency codes per home country ─────────────────────────────────────────
+const HOME_CURRENCY: Record<string, string> = {
+  IN: "INR", US: "USD", GB: "GBP", AU: "AUD",
+  CA: "CAD", DE: "EUR", FR: "EUR", JP: "JPY",
+  SG: "SGD", AE: "AED",
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +40,46 @@ function visaClass(v: VisaStatus): string {
   if (v === "free" || v === "on-arrival") return "bg-emerald-500/20 text-emerald-400";
   if (v === "e-visa")                     return "bg-amber-500/20 text-amber-400";
   return "bg-rose-500/20 text-rose-400";
+}
+
+function langLabel(t: LanguageTip | undefined): { text: string; cls: string } {
+  if (!t) return { text: "Check locally", cls: "bg-zinc-500/20 text-zinc-400" };
+  if (t === "english-wide")    return { text: "English works great", cls: "bg-emerald-500/20 text-emerald-400" };
+  if (t === "english-limited") return { text: "Basic English helps", cls: "bg-amber-500/20 text-amber-400" };
+  if (t === "hindi-ok")        return { text: "Hindi is understood", cls: "bg-blue-500/20 text-blue-400" };
+  return { text: "Learn local phrases", cls: "bg-rose-500/20 text-rose-400" };
+}
+
+/**
+ * Returns the user's offset from the given IANA timezone in hours (positive = ahead of user).
+ */
+function getTimeDiff(ianaTz: string): { hours: number; label: string } | null {
+  try {
+    const nowMs = Date.now();
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: ianaTz,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(new Date(nowMs));
+    const h = parseInt(parts.find(p => p.type === "hour")?.value ?? "0");
+    const m = parseInt(parts.find(p => p.type === "minute")?.value ?? "0");
+    const local = new Date();
+    const localH = local.getHours();
+    const localM = local.getMinutes();
+    const diff = (h * 60 + m) - (localH * 60 + localM);
+    // normalise to [-720, 720]
+    const normDiff = ((diff + 720) % 1440) - 720;
+    const hrs = Math.round(normDiff / 15) * 15 / 60;
+    if (hrs === 0) return { hours: 0, label: "Same time as you" };
+    const abs   = Math.abs(hrs);
+    const frac  = abs % 1 !== 0 ? abs.toFixed(1) : abs.toString();
+    const dir   = hrs > 0 ? "ahead" : "behind";
+    return { hours: hrs, label: `${frac}h ${dir} of you` };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -54,14 +109,105 @@ function EssentialCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TravelTab({ countryCode }: { countryCode: string }) {
+  const { homeCountry } = useHomeCountry();
   const code    = countryCode.toUpperCase();
-  const visa    = visaForIndian[code]  ?? DEFAULT_VISA;
+
+  const visa    = getVisaStatus(homeCountry, code) ?? DEFAULT_VISA;
   const time    = bestTime[code]       ?? DEFAULT_BEST_TIME;
   const tipText = currencyTip[code]    ?? DEFAULT_CURRENCY_TIP;
   const items   = knownFor[code]       ?? DEFAULT_KNOWN_FOR;
+  const flightH = getFlightHours(homeCountry, code);
+  const langTip = languageTip[code];
+  const popular = isPopularFrom(homeCountry, code);
+  const langInfo = langLabel(langTip);
+
+  const homeInfo   = homeCountryData[homeCountry];
+  const homeLabel  = HOME_COUNTRY_LABELS[homeCountry];
+  const homeCurrency = HOME_CURRENCY[homeCountry] ?? "USD";
+
+  // ── Live time difference ──────────────────────────────────────────────────
+  const [timeDiff, setTimeDiff] = useState<{ hours: number; label: string } | null>(null);
+  useEffect(() => {
+    const tz = getCountryTimezone(code)?.primary;
+    if (!tz) { setTimeDiff(null); return; }
+    const compute = () => setTimeDiff(getTimeDiff(tz));
+    compute();
+    const id = setInterval(compute, 60_000);
+    return () => clearInterval(id);
+  }, [code]);
+
+  // ── Live exchange rate (home currency → destination currency) ─────────────
+  const [rateLabel, setRateLabel] = useState<string>("");
+  useEffect(() => {
+    setRateLabel("");
+    // Skip if home == destination currency or home is the country itself
+    if (code === homeCountry) { setRateLabel("—"); return; }
+    fetch(`https://api.frankfurter.app/latest?from=${homeCurrency}&to=${code}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        // data.rates[code] might not exist if dest uses a different code
+        // Fallback: try from dest currency to home
+        if (!data?.rates?.[code]) {
+          // Try fetching dest currency name from REST countries
+          return fetch(`https://api.frankfurter.app/latest?from=${homeCurrency}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+              if (!d?.rates) return;
+              // We can't easily guess the currency, just skip
+              setRateLabel("See live rates");
+            });
+        }
+        const rate = data.rates[code] as number;
+        const inverted = (1 / rate).toFixed(2);
+        // e.g. "₹22.8 per 1 AED" or "£0.79 per 1 USD"
+        const homeCurrSymbol = homeCurrencySymbol(homeCurrency);
+        setRateLabel(`${homeCurrSymbol}${inverted} per 1 ${code}`);
+      })
+      .catch(() => {});
+  }, [code, homeCountry, homeCurrency]);
+
+  // ── Country GDP + population ──────────────────────────────────────────────
+  const [gdpPc, setGdpPc] = useState<number | null>(null);
+  const [pop,   setPop]   = useState<number | null>(null);
+  useEffect(() => {
+    setGdpPc(null);
+    setPop(null);
+    fetch(`https://restcountries.com/v3.1/alpha/${code}?fields=population,gini`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const d = Array.isArray(data) ? data[0] : data;
+        if (d?.population) setPop(d.population);
+      })
+      .catch(() => {});
+    fetch(`https://api.worldbank.org/v2/country/${code}/indicator/NY.GDP.PCAP.CD?format=json&mrv=1`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const val = data?.[1]?.[0]?.value;
+        if (val != null) setGdpPc(Math.round(val));
+      })
+      .catch(() => {});
+  }, [code]);
+
+  function fmtPop(n: number): string {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return Math.round(n / 1e3) + "K";
+    return n.toString();
+  }
 
   return (
     <div className="space-y-4">
+
+      {/* ── Popular badge ── */}
+      {popular && code !== homeCountry && (
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
+          <span className="text-base leading-none">{homeLabel.flag}</span>
+          <span className="text-xs font-medium text-amber-400">
+            Popular destination for {homeLabel.label} travellers
+          </span>
+        </div>
+      )}
 
       {/* ── Travel Essentials ── */}
       <div>
@@ -74,7 +220,7 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
 
         <div className="grid grid-cols-2 gap-2">
           {/* Visa */}
-          <EssentialCard icon="🛂" label="Visa · Indian passport">
+          <EssentialCard icon="🛂" label={`Visa · ${homeLabel.label} passport`}>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${visaClass(visa)}`}>
               {visaLabel(visa)}
             </span>
@@ -85,12 +231,98 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
             <span className="text-xs font-medium text-text-primary">{time}</span>
           </EssentialCard>
 
+          {/* Flight Time */}
+          <EssentialCard icon="🛫" label={`Flight from ${homeInfo?.hub ?? homeLabel.label}`}>
+            {flightH != null ? (
+              <span className="text-xs font-medium text-text-primary">
+                {flightH === 0 ? "You're home!" : `~${flightH} hrs`}
+              </span>
+            ) : (
+              <span className="text-xs text-text-muted/60">No direct data</span>
+            )}
+          </EssentialCard>
+
+          {/* Time Difference */}
+          <EssentialCard icon="🕐" label="Time Difference">
+            {timeDiff !== null ? (
+              <span className="text-xs font-medium text-text-primary">
+                {timeDiff.label}
+              </span>
+            ) : (
+              <span className="text-xs text-text-muted/60">Calculating…</span>
+            )}
+          </EssentialCard>
+
+          {/* Live Exchange Rate */}
+          <EssentialCard icon="💱" label="Exchange Rate (live)">
+            {rateLabel ? (
+              <span className="text-xs font-medium text-text-primary">{rateLabel}</span>
+            ) : (
+              <span className="text-xs text-text-muted/60">Loading…</span>
+            )}
+          </EssentialCard>
+
           {/* Currency Tip */}
           <EssentialCard icon="💳" label="Currency Tip">
             <span className="text-xs text-text-secondary leading-snug">{tipText}</span>
           </EssentialCard>
         </div>
       </div>
+
+      {/* ── Language Tip ── */}
+      <div className="bg-bg-card border border-border-subtle rounded-xl p-3 flex items-center gap-2.5">
+        <span className="text-base leading-none flex-shrink-0">🗣</span>
+        <div className="min-w-0">
+          <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium block mb-1">Language</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${langInfo.cls}`}>
+            {langInfo.text}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Comparison Stats vs home country ── */}
+      {homeInfo && (gdpPc !== null || pop !== null) && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">📊</span>
+            <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+              Compared to {homeInfo.name}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {gdpPc !== null && (
+              <div className="bg-bg-card border border-border-subtle rounded-xl p-3">
+                <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium block mb-1.5">
+                  GDP per capita
+                </span>
+                <p className="text-sm font-bold text-text-primary">
+                  ${gdpPc.toLocaleString()}
+                </p>
+                <p className={`text-[10px] mt-0.5 ${
+                  gdpPc > homeInfo.gdpPerCapita ? "text-emerald-400" : "text-rose-400"
+                }`}>
+                  {gdpPc > homeInfo.gdpPerCapita
+                    ? `${(gdpPc / homeInfo.gdpPerCapita).toFixed(1)}× ${homeInfo.name}`
+                    : `${(homeInfo.gdpPerCapita / gdpPc).toFixed(1)}× below ${homeInfo.name}`}
+                </p>
+              </div>
+            )}
+            {pop !== null && (
+              <div className="bg-bg-card border border-border-subtle rounded-xl p-3">
+                <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium block mb-1.5">
+                  Population
+                </span>
+                <p className="text-sm font-bold text-text-primary">
+                  {fmtPop(pop)}
+                </p>
+                <p className="text-[10px] text-text-muted/60 mt-0.5">
+                  {homeInfo.name}: {fmtPop(homeInfo.population)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Culture & Highlights ── */}
       <div>
@@ -117,4 +349,13 @@ export default function TravelTab({ countryCode }: { countryCode: string }) {
 
     </div>
   );
+}
+
+// ─── Helper: currency symbol for common currencies ────────────────────────────
+function homeCurrencySymbol(code: string): string {
+  const map: Record<string, string> = {
+    INR: "₹", USD: "$", GBP: "£", AUD: "A$", CAD: "C$",
+    EUR: "€", JPY: "¥", SGD: "S$", AED: "د.إ",
+  };
+  return map[code] ?? code + " ";
 }
