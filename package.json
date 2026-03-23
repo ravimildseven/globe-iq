@@ -17,7 +17,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "three": "^0.183.2",
-    "topojson-client": "^3.1.0"
+    "topojson-client": "^3.1.0",
+    "yahoo-finance2": "^3.13.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
