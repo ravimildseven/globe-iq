@@ -413,7 +413,7 @@ export default function Home() {
       )}
 
       {/* ── Bottom search dock — floating above HUD bar ── */}
-      <div className="absolute bottom-[62px] left-1/2 -translate-x-1/2 z-40
+      <div data-testid="search-dock" className="absolute bottom-[62px] left-1/2 -translate-x-1/2 z-40
                       flex flex-col items-center gap-2 pointer-events-none">
 
         {/* Recently viewed chips */}
