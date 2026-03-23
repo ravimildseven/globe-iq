@@ -413,8 +413,9 @@ export default function Home() {
       )}
 
       {/* ── Bottom search dock — floating above HUD bar ── */}
-      <div className="absolute bottom-[62px] left-1/2 -translate-x-1/2 z-40
-                      flex flex-col items-center gap-2 pointer-events-none">
+      <div className="fixed left-1/2 -translate-x-1/2 z-40
+                      flex flex-col items-center gap-2 pointer-events-none"
+           style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)' }}>
 
         {/* Recently viewed chips */}
         {recentCountries.length > 0 && (
@@ -454,7 +455,8 @@ export default function Home() {
       </div>
 
       {/* ── Bottom HUD status bar ── */}
-      <div className="absolute bottom-5 left-6 right-6 z-40 flex items-center justify-between pointer-events-none">
+      <div className="fixed left-6 right-6 z-40 flex items-center justify-between pointer-events-none"
+           style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}>
         {/* Live status */}
         <div className="flex items-center gap-2 glass rounded-full px-3.5 py-1.5">
           <span className="relative w-1.5 h-1.5 rounded-full bg-accent-green pulse-dot" />
