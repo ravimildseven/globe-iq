@@ -59,13 +59,17 @@ export type MarketData = Record<string, MarketQuote>;  // keyed by ISO-2 country
 
 /** THREE.js-compatible hex colour for a given % change */
 export function marketHex(changePercent: number): string {
-  return changePercent >= 0 ? "#22C55E" : "#EF4444";
+  if (changePercent >=  3) return "#166534"; // deep green
+  if (changePercent >=  0) return "#22C55E"; // green
+  if (changePercent >= -3) return "#EF4444"; // red
+  return "#7F1D1D"; // deep red
 }
 
-/** Overlay opacity — stronger for bigger moves */
+/** Overlay opacity — stronger for bigger moves.
+ *  0.5% change → 0.30,  2%+ change → 0.70  */
 export function marketOpacity(changePercent: number): number {
   const abs = Math.abs(changePercent);
-  if (abs >= 2)   return 0.28;
-  if (abs >= 0.5) return 0.15;
-  return 0.07;
+  if (abs >= 2)   return 0.70;
+  if (abs >= 0.5) return 0.50;
+  return 0.30;
 }

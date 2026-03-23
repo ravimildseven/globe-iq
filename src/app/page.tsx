@@ -14,6 +14,7 @@ import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
 import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
 import { playSelectSound, playDeselectSound, playZoomSound, playLayerToggleSound } from "@/lib/sound-effects";
 import { MarketData, marketHex, marketOpacity } from "@/lib/marketIndices";
+import { getExchangeStatuses, openMarketCount, type ExchangeStatus } from "@/lib/market-hours";
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { getCountryTimezone } from "@/lib/country-timezones";
 import { POPULATION_DENSITY, densityColor } from "@/lib/population-data";
@@ -181,9 +182,14 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  // Market overlay
+  // Market overlay — all countries get a neutral grey base; known indices override
   const marketColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
     const out: Record<string, { hex: string; opacity: number }> = {};
+    // Neutral grey for every country (no data)
+    for (const c of countryCentroids) {
+      out[c.code] = { hex: "#64748B", opacity: 0.15 };
+    }
+    // Override with actual market data
     for (const [code, q] of Object.entries(marketData)) {
       out[code] = { hex: marketHex(q.changePercent), opacity: marketOpacity(q.changePercent) };
     }
@@ -469,11 +475,85 @@ export default function Home() {
 
         {/* About + UTC clock */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          <MarketHoursPill />
           <AboutPanel />
           <UTCClock />
         </div>
       </div>
     </main>
+  );
+}
+
+/* ── Market hours pill + popover ────────────────────────── */
+const STATUS_DOT: Record<string, string> = {
+  open:   "bg-accent-green",
+  pre:    "bg-accent-amber",
+  post:   "bg-accent-amber",
+  closed: "bg-accent-red",
+};
+
+function MarketHoursPill() {
+  const [statuses, setStatuses] = useState<ExchangeStatus[]>([]);
+  const [open, setOpen]         = useState(false);
+  const ref                     = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const refresh = () => setStatuses(getExchangeStatuses());
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  if (statuses.length === 0) return null;
+  const count = openMarketCount(statuses);
+  const dotColor = count > 0 ? "bg-accent-green" : "bg-accent-red";
+
+  return (
+    <div ref={ref} className="relative hidden sm:block">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="glass rounded-full px-3.5 py-1.5 flex items-center gap-2
+                   hover:border-accent-amber/30 transition-colors"
+        title="Market hours"
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+        <span className="text-[11px] text-text-muted">
+          {count}/{statuses.length} <span className="text-text-muted/60">markets open</span>
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full right-0 mb-2 w-72 glass rounded-xl border border-border
+                        shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-widest">Markets Today</p>
+          </div>
+          <div className="divide-y divide-border/50">
+            {statuses.map(s => (
+              <div key={s.id} className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[s.status]}`} />
+                  <span className="text-[12px] text-text-primary font-medium">{s.name}</span>
+                </div>
+                <span className="text-[10px] text-text-muted text-right max-w-[120px] leading-tight">
+                  {s.nextLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

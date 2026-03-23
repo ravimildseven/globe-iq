@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
 import { MarketQuote } from "@/lib/marketIndices";
+import { getExchangeStatuses, openMarketCount, type ExchangeStatus, type MarketStatus } from "@/lib/market-hours";
 import {
   TrendingUp,
   TrendingDown,
@@ -15,7 +16,71 @@ import {
   Globe2,
   Database,
   Activity,
+  Clock,
 } from "lucide-react";
+
+// ─── Market hours section ─────────────────────────────────────────────────────
+const STATUS_COLOR: Record<MarketStatus, string> = {
+  open:   "bg-accent-green",
+  pre:    "bg-accent-amber",
+  post:   "bg-accent-amber",
+  closed: "bg-accent-red",
+};
+const STATUS_LABEL: Record<MarketStatus, string> = {
+  open:   "Open",
+  pre:    "Pre",
+  post:   "Post",
+  closed: "Closed",
+};
+
+function MarketHoursSection() {
+  const [statuses, setStatuses] = useState<ExchangeStatus[]>([]);
+
+  useEffect(() => {
+    const refresh = () => setStatuses(getExchangeStatuses());
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (statuses.length === 0) return null;
+
+  const openCount = openMarketCount(statuses);
+
+  return (
+    <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
+        <div className="flex items-center gap-2">
+          <Clock size={12} className="text-text-muted" />
+          <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">Markets Today</span>
+        </div>
+        <span className={`text-[10px] font-semibold ${openCount > 0 ? "text-accent-green" : "text-text-muted"}`}>
+          {openCount}/{statuses.length} open
+        </span>
+      </div>
+      <div className="divide-y divide-border/40">
+        {statuses.map(s => (
+          <div key={s.id} className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_COLOR[s.status]}`} />
+              <span className="text-[11px] text-text-primary">{s.name}</span>
+              <span className={`text-[9px] font-medium px-1 py-0.5 rounded ${
+                s.status === "open"   ? "bg-accent-green/10 text-accent-green" :
+                s.status === "closed" ? "bg-accent-red/10 text-accent-red"     :
+                                        "bg-accent-amber/10 text-accent-amber"
+              }`}>
+                {STATUS_LABEL[s.status]}
+              </span>
+            </div>
+            <span className="text-[10px] text-text-muted text-right max-w-[110px] leading-tight">
+              {s.nextLabel}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ─── Response type matching the API ─────────────────────────────────────────
 interface EconomyResponse {
@@ -246,6 +311,9 @@ export default function EconomyTab({
           {result?.asOf ? ` · ${result.asOf}` : ""}
         </span>
       </div>
+
+      {/* Global market hours — always shown, not country-specific */}
+      <MarketHoursSection />
     </div>
   );
 }
