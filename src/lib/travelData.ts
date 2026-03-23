@@ -1123,8 +1123,8 @@ export const flightHoursByHome: Record<string, Record<string, number>> = {
   US: {
     GB:8,FR:10,DE:10,IT:11,ES:11,PT:9,GR:13,TR:12,AE:14,SG:19,JP:14,KR:14,
     AU:20,NZ:17,CN:14,TH:18,IN:15,MX:4,CA:5,BR:10,AR:12,ZA:17,KE:15,EG:12,
-    MA:10,IL:13,SA:14,QA:14,NG:12,PH:18,VN:18,MY:19,SG:19,HK:16,TW:16,
-    GB:8,NL:10,BE:10,SE:10,NO:10,DK:10,FI:11,PL:11,CZ:11,HU:11,RO:12,
+    MA:10,IL:13,SA:14,QA:14,NG:12,PH:18,VN:18,MY:19,HK:16,TW:16,
+    NL:10,BE:10,SE:10,NO:10,DK:10,FI:11,PL:11,CZ:11,HU:11,RO:12,
     US:0,
   },
   GB: {
@@ -1165,7 +1165,7 @@ export const flightHoursByHome: Record<string, Record<string, number>> = {
   },
   SG: {
     IN:6,MY:1,ID:2,TH:2,VN:3,PH:3,KH:2,AU:8,NZ:11,JP:7,KR:7,CN:5,HK:4,
-    TW:5,GB:14,FR:13,DE:13,AE:7,US:19,CA:18,ZA:13,KE:11,AU:8,
+    TW:5,GB:14,FR:13,DE:13,AE:7,US:19,CA:18,ZA:13,KE:11,
     SG:0,
   },
   AE: {
