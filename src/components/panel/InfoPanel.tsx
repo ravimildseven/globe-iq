@@ -48,6 +48,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
   const [countryInfo, setCountryInfo]   = useState<CountryInfo | null>(null);
   const [loadingInfo, setLoadingInfo]   = useState(true);
   const tabRefs                         = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tabBarRef                       = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 
   /* ── Wikipedia: hero image + extract ── */
@@ -292,7 +293,18 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
         />
 
         {/* ── Tabs ── */}
-        <div className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0 overflow-x-auto scrollbar-hide">
+        <div
+          ref={tabBarRef}
+          className="relative px-4 py-2 border-b border-border-subtle bg-bg-card flex-shrink-0 overflow-x-scroll scrollbar-hide"
+          onWheel={e => {
+            const el = tabBarRef.current;
+            if (!el) return;
+            // Let native horizontal swipe pass through; map vertical delta to horizontal scroll
+            if (e.deltaX !== 0) return;
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+          }}
+        >
           <div className="flex gap-1 relative flex-nowrap">
             <div
               className="tab-indicator absolute top-0.5 bottom-0.5 bg-bg-elevated rounded-lg"
