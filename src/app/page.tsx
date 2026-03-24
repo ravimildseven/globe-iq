@@ -13,6 +13,7 @@ import CountrySearch from "@/components/search/CountrySearch";
 import AboutPanel from "@/components/ui/AboutPanel";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
+import GlobalDashboard from "@/components/ui/GlobalDashboard";
 import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
 import HomeCountrySelector from "@/components/ui/HomeCountrySelector";
 import { playSelectSound, playDeselectSound, playZoomSound, playLayerToggleSound } from "@/lib/sound-effects";
@@ -475,6 +476,9 @@ export default function Home() {
 
         {/* Layers toggle */}
         <LayersPanel activeLayer={activeLayer} onLayerChange={(id) => { playLayerToggleSound(); setActiveLayer(id); }} />
+
+        {/* Global Dashboard */}
+        <GlobalDashboard />
       </div>
 
       {/* ── Mobile beacon dismiss pill (Escape unavailable on touch) ── */}

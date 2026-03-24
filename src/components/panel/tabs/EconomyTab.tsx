@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
 import { MarketQuote } from "@/lib/marketIndices";
-import { CommodityQuote } from "@/lib/commodities";
 import { getExchangeStatuses, ExchangeStatus } from "@/lib/market-hours";
 import {
   TrendingUp,
@@ -17,8 +16,6 @@ import {
   Globe2,
   Database,
   Activity,
-  Clock,
-  Flame,
 } from "lucide-react";
 
 // ─── Response type matching the API ─────────────────────────────────────────
@@ -27,67 +24,6 @@ interface EconomyResponse {
   source: "worldbank" | "static" | "none";
   sourceLabel: string;
   asOf: string;
-}
-
-// ─── Market Hours Section ────────────────────────────────────────────────────
-function StatusDot({ status }: { status: ExchangeStatus["status"] }) {
-  const color =
-    status === "open"  ? "bg-accent-green" :
-    status === "pre"   ? "bg-accent-amber" :
-    status === "post"  ? "bg-accent-amber" :
-                         "bg-accent-red";
-  const pulse = status === "open" ? "pulse-dot" : "";
-  return <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${color} ${pulse}`} />;
-}
-
-function StatusBadge({ status }: { status: ExchangeStatus["status"] }) {
-  const label =
-    status === "open"  ? "Open" :
-    status === "pre"   ? "Pre" :
-    status === "post"  ? "Post" :
-                         "Closed";
-  const cls =
-    status === "open"  ? "bg-accent-green/10 text-accent-green" :
-    status === "pre"   ? "bg-accent-amber/10 text-accent-amber" :
-    status === "post"  ? "bg-accent-amber/10 text-accent-amber" :
-                         "bg-accent-red/10 text-accent-red";
-  return (
-    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-function MarketHoursSection() {
-  const [statuses, setStatuses] = useState<ExchangeStatus[]>(() => getExchangeStatuses());
-
-  useEffect(() => {
-    const id = setInterval(() => setStatuses(getExchangeStatuses()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Clock size={13} className="text-accent-cyan" />
-        <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
-          Market Hours
-        </span>
-      </div>
-      <div className="space-y-2">
-        {statuses.map(s => (
-          <div key={s.id} className="flex items-center gap-2">
-            <StatusDot status={s.status} />
-            <span className="text-xs text-text-secondary flex-1 min-w-0 truncate">{s.name}</span>
-            <StatusBadge status={s.status} />
-            {s.note && (
-              <span className="text-[10px] text-text-muted whitespace-nowrap">{s.note}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ─── KPI card ────────────────────────────────────────────────────────────────
@@ -128,69 +64,6 @@ function Skeletons() {
       <div className="rounded-xl p-4 bg-bg-card border border-border-subtle">
         <div className="skeleton h-2.5 w-20 rounded mb-3" />
         <div className="skeleton h-7 w-32 rounded" />
-      </div>
-    </div>
-  );
-}
-
-// ─── Global Markets (commodities + crypto) ───────────────────────────────────
-function GlobalMarketsSection() {
-  const [data, setData] = useState<CommodityQuote[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/commodities")
-      .then(r => r.ok ? r.json() : [])
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
-        <div className="skeleton h-2.5 w-28 rounded mb-3" />
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="skeleton h-4 w-full rounded mb-2" />
-        ))}
-      </div>
-    );
-  }
-  if (!data.length) return null;
-
-  return (
-    <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Flame size={13} className="text-accent-amber" />
-        <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
-          Global Markets
-        </span>
-      </div>
-      <div className="space-y-2.5">
-        {data.map(c => {
-          const up = c.changePercent >= 0;
-          const sign = up ? "+" : "";
-          const formattedPrice = c.price >= 10000
-            ? c.price.toLocaleString("en", { maximumFractionDigits: 0 })
-            : c.price >= 100
-              ? c.price.toLocaleString("en", { maximumFractionDigits: 2 })
-              : c.price.toFixed(2);
-          return (
-            <div key={c.ticker} className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <span className="text-xs text-text-primary font-medium">{c.name}</span>
-                <span className="text-[10px] text-text-muted ml-1.5">{c.unit}</span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs font-mono text-text-primary">{formattedPrice}</span>
-                <span className={`text-[11px] font-mono flex items-center gap-0.5 ${up ? "text-accent-green" : "text-accent-red"}`}>
-                  {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                  {sign}{c.changePercent.toFixed(2)}%
-                </span>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -399,12 +272,6 @@ export default function EconomyTab({
           </div>
         </div>
       )}
-
-      {/* Global Markets — commodities & crypto */}
-      <GlobalMarketsSection />
-
-      {/* Market Hours */}
-      <MarketHoursSection />
 
       {/* Source badge */}
       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent-indigo/5 border border-accent-indigo/15">
