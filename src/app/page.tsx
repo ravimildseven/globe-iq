@@ -412,6 +412,7 @@ export default function Home() {
           theme={globeTheme}
           overlayColors={overlayColors}
           nightLightsMode={nightLightsMode}
+          activeLayer={activeLayer}
           onCameraMove={handleCameraMove}
         />
       </div>

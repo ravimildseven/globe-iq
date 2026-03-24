@@ -12,8 +12,7 @@ import {
 import { TERRITORIES, TERRITORY_BY_CODE, type Territory } from "@/lib/territoriesData";
 import { CAPITAL_CITIES } from "@/lib/capitals";
 import { playHoverSound } from "@/lib/sound-effects";
-import { FlightArc } from "./FlightArcs";
-import { useHomeCountry } from "@/lib/homeCountry";
+import { LiveFlightsLayer } from "./LiveFlightsLayer";
 
 // Globe texture URLs — from three-globe@2.34.1 unpkg CDN (same library source)
 const TEX_DAY_DARK  = "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg";
@@ -33,6 +32,7 @@ interface GlobeProps {
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
   onCameraMove?: (az: number, el: number) => void;
+  activeLayer?: string | null;
 }
 
 // ─── Real-time subsolar point ─────────────────────────────────────────────────
@@ -790,7 +790,7 @@ function SelectedLabel({ country }: { country: CountryCentroid }) {
 
 // ─── Main globe with textures + country layers ────────────────────────────────
 function EarthGlobe({
-  selectedCountry, onCountrySelect, onTerritorySelect, onInteractionStart, onHoverCountry, onDoubleClickZoom, sunDir, theme, overlayColors, nightLightsMode,
+  selectedCountry, onCountrySelect, onTerritorySelect, onInteractionStart, onHoverCountry, onDoubleClickZoom, sunDir, theme, overlayColors, nightLightsMode, activeLayer,
 }: {
   selectedCountry: CountryCentroid | null;
   onCountrySelect: (country: CountryCentroid) => void;
@@ -802,10 +802,8 @@ function EarthGlobe({
   theme: "dark" | "light";
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
+  activeLayer?: string | null;
 }) {
-  const { homeCountry } = useHomeCountry();
-  const originCentroid = useMemo(() => countryCentroids.find(c => c.code === homeCountry) || { code: "IN", lat: 22.0, lng: 79.0, name: "India" }, [homeCountry]);
-  
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
   const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
   const [hoveredCentroid, setHoveredCentroid] = useState<CountryCentroid | null>(null);
@@ -1002,12 +1000,9 @@ function EarthGlobe({
         <SelectedLabel country={selectedCountry} />
       )}
 
-      {/* Flight Arc from home country to selected */}
-      {selectedCountry && originCentroid && selectedCountry.code !== originCentroid.code && (
-        <FlightArc 
-          source={{ lat: originCentroid.lat, lng: originCentroid.lng }}
-          destination={{ lat: selectedCountry.lat, lng: selectedCountry.lng }} 
-        />
+      {/* Live Air Traffic Layer */}
+      {activeLayer === "flights" && (
+        <LiveFlightsLayer count={400} globeRadius={1.0} />
       )}
 
       {/* Always-visible muted labels for major countries (helps mobile) */}
@@ -1162,7 +1157,7 @@ function AutoRotate({ enabled }: { enabled: boolean }) {
 function SceneRoot({
   selectedCountry, flyToTarget, flyHome, onFlyHomeDone,
   onCountrySelect, onTerritorySelect, onInteractionStart, onHoverCountry,
-  zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove,
+  zoomDelta, onZoomHandled, isInteracting, theme, overlayColors, nightLightsMode, onCameraMove, activeLayer,
 }: {
   selectedCountry: CountryCentroid | null;
   flyToTarget?: CountryCentroid | null;
@@ -1179,6 +1174,7 @@ function SceneRoot({
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
   onCameraMove?: (az: number, el: number) => void;
+  activeLayer?: string | null;
 }) {
   const sunDir = useRef<THREE.Vector3>(getSunPosition());
 
@@ -1223,6 +1219,7 @@ function SceneRoot({
         theme={theme}
         overlayColors={overlayColors}
         nightLightsMode={nightLightsMode}
+        activeLayer={activeLayer}
       />
       <OceanLabels />
       <SunLensFlare sunDirRef={sunDir} theme={theme} />
@@ -1259,7 +1256,7 @@ function LoadingFallback() {
 }
 
 // ─── Root export ──────────────────────────────────────────────────────────────
-export default function Globe({ selectedCountry, onCountrySelect, onTerritorySelect, flyToTarget, flyHome, onFlyHomeDone, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove }: GlobeProps) {
+export default function Globe({ selectedCountry, onCountrySelect, onTerritorySelect, flyToTarget, flyHome, onFlyHomeDone, zoomDelta, onZoomHandled, theme, overlayColors, nightLightsMode, onCameraMove, activeLayer }: GlobeProps) {
   const [isInteracting, setIsInteracting]   = useState(false);
   const [hoveredCountry, setHoveredCountry] = useState<CountryCentroid | null>(null);
   const [mousePos, setMousePos]             = useState({ x: 0, y: 0 });
@@ -1302,6 +1299,7 @@ export default function Globe({ selectedCountry, onCountrySelect, onTerritorySel
             overlayColors={overlayColors}
             nightLightsMode={nightLightsMode}
             onCameraMove={onCameraMove}
+            activeLayer={activeLayer}
           />
         </Suspense>
       </Canvas>

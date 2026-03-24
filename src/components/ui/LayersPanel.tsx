@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, TrendingUp, Swords, Users, Clock, Moon, X, DollarSign, Award, Zap } from "lucide-react";
+import { Layers, TrendingUp, Swords, Users, Clock, Moon, X, DollarSign, Award, Zap, Plane } from "lucide-react";
 
 export type LayerId =
   | "market"
@@ -11,7 +11,8 @@ export type LayerId =
   | "nightlights"
   | "gdp"
   | "hdi"
-  | "earthquakes";
+  | "earthquakes"
+  | "flights";
 
 interface LayerConfig {
   id: LayerId;
@@ -90,6 +91,10 @@ const NIGHT_LEGEND = (
   <p className="text-[9px] text-text-muted mt-1">City lights amplified on night side</p>
 );
 
+const FLIGHT_LEGEND = (
+  <p className="text-[9px] text-text-muted mt-1">Simulated air traffic connecting real-world capitals</p>
+);
+
 const GDP_LEGEND = (
   <div className="mt-1.5">
     <div className="flex gap-0 rounded-sm overflow-hidden h-2" style={{ width: 140 }}>
@@ -143,6 +148,7 @@ const LAYERS: LayerConfig[] = [
   { id: "hdi",         label: "Human Dev. Index",    icon: <Award       size={13} />, description: "Health, education & income",  legend: HDI_LEGEND },
   { id: "conflicts",   label: "Conflict Zones",      icon: <Swords      size={13} />, description: "Active wars & tensions",      legend: CONFLICT_LEGEND },
   { id: "earthquakes", label: "Seismic Activity",    icon: <Zap         size={13} />, description: "M4.5+ quakes · past 7 days",  legend: EQ_LEGEND },
+  { id: "flights",     label: "Flight Simulation",   icon: <Plane       size={13} />, description: "Global simulated traffic",    legend: FLIGHT_LEGEND },
   { id: "population",  label: "Population Density",  icon: <Users       size={13} />, description: "Persons per km²",             legend: POPULATION_LEGEND },
   { id: "timezones",   label: "Time Zones",          icon: <Clock       size={13} />, description: "UTC offset bands",            legend: TIMEZONE_LEGEND },
   { id: "nightlights", label: "Night Lights",        icon: <Moon        size={13} />, description: "City glow amplified",         legend: NIGHT_LEGEND },
@@ -193,7 +199,7 @@ export default function LayersPanel({ activeLayer, onLayerChange }: LayersPanelP
           </div>
 
           {/* Layer rows */}
-          <div className="p-2 flex flex-col gap-0.5">
+          <div className="p-2 flex flex-col gap-0.5 max-h-[260px] sm:max-h-[340px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             {LAYERS.map(layer => {
               const isActive = activeLayer === layer.id;
               return (
