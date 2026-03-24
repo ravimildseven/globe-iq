@@ -16,6 +16,8 @@ import LayersPanel, { LayerId } from "@/components/ui/LayersPanel";
 import GlobalDashboard from "@/components/ui/GlobalDashboard";
 import { Globe2, Plus, Minus, Shuffle } from "lucide-react";
 import HomeCountrySelector from "@/components/ui/HomeCountrySelector";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import { SpiralDemo } from "@/components/ui/spiral-demo";
 import { playSelectSound, playDeselectSound, playZoomSound, playLayerToggleSound } from "@/lib/sound-effects";
 import { MarketData, marketHex, marketOpacity, COUNTRY_INDEX } from "@/lib/marketIndices";
 import { getExchangeStatuses, openMarketCount, ExchangeStatus } from "@/lib/market-hours";
@@ -142,6 +144,7 @@ export default function Home() {
   const [flyToTarget, setFlyToTarget]           = useState<CountryCentroid | null>(null);
   const [flyHome, setFlyHome]                 = useState(false);
   const [zoomDelta, setZoomDelta] = useState(0);
+  const [showSplash, setShowSplash] = useState(true);
   const [marketData, setMarketData] = useState<MarketData>({});
   const [recentCountries, setRecentCountries] = useState<CountryCentroid[]>([]);
   const [activeLayer, setActiveLayer] = useState<LayerId | null>(null);
@@ -372,6 +375,12 @@ export default function Home() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-bg-primary hud-scan">
+      {/* ── Splash Screen Overlay ── */}
+      {showSplash && (
+        <div className="absolute inset-0 z-[100]">
+          <SpiralDemo onEnter={() => setShowSplash(false)} />
+        </div>
+      )}
 
       {/* ── Deep space background ── */}
       <Starfield ref={starfieldRef} />
@@ -380,53 +389,7 @@ export default function Home() {
       {/* ── Header ── */}
       <header className="absolute top-0 left-0 right-0 z-40 px-6 pt-5 pb-3 flex items-center justify-between pointer-events-none">
         {/* Logo */}
-        <div className="flex items-center gap-3 pointer-events-auto">
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl overflow-hidden" style={{ boxShadow: "0 0 0 1px rgba(59,130,246,0.35), 0 0 16px rgba(59,130,246,0.20)" }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-                <defs>
-                  <radialGradient id="lG" cx="38%" cy="32%" r="68%">
-                    <stop offset="0%"   stopColor="#2563EB"/>
-                    <stop offset="55%"  stopColor="#1E3A8A"/>
-                    <stop offset="100%" stopColor="#0A1628"/>
-                  </radialGradient>
-                  <filter id="lF" x="-40%" y="-40%" width="180%" height="180%">
-                    <feGaussianBlur stdDeviation="0.9" result="b"/>
-                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                  <clipPath id="lC"><circle cx="18" cy="21" r="11"/></clipPath>
-                </defs>
-                <rect width="40" height="40" rx="9" fill="#070F1C"/>
-                <circle cx="18" cy="21" r="11" fill="url(#lG)"/>
-                <g clipPath="url(#lC)" fill="none" opacity="0.55">
-                  <ellipse cx="16" cy="17" rx="4.5" ry="3" fill="#16A34A"/>
-                  <ellipse cx="22" cy="18" rx="3.5" ry="2.5" fill="#15803D"/>
-                  <ellipse cx="13" cy="22" rx="3" ry="2" fill="#166534"/>
-                  <ellipse cx="21" cy="24" rx="4" ry="2" fill="#14532D"/>
-                </g>
-                <ellipse cx="16" cy="15" rx="4" ry="2.5" fill="white" opacity="0.08" transform="rotate(-25 16 15)" clipPath="url(#lC)"/>
-                <circle cx="18" cy="21" r="11" fill="none" stroke="#93C5FD" strokeWidth="0.5" opacity="0.4"/>
-                <ellipse cx="18" cy="21" rx="14" ry="4.8" fill="none" stroke="#93C5FD" strokeWidth="1.3" opacity="0.75" transform="rotate(-22 18 21)" filter="url(#lF)"/>
-                <circle cx="21" cy="16" r="1.1" fill="white" opacity="0.95" filter="url(#lF)"/>
-                <line x1="22" y1="15" x2="29" y2="9"  stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
-                <circle cx="30.5" cy="7.5" r="2"   fill="#F59E0B" filter="url(#lF)"/>
-                <line x1="22" y1="16" x2="33" y2="15" stroke="#22D3EE" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
-                <circle cx="34.5" cy="14.5" r="2" fill="#22D3EE" filter="url(#lF)"/>
-                <line x1="22" y1="17" x2="29" y2="23" stroke="#4ADE80" strokeWidth="1.5" strokeLinecap="round" filter="url(#lF)"/>
-                <circle cx="30.5" cy="24.5" r="2" fill="#4ADE80" filter="url(#lF)"/>
-              </svg>
-            </div>
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-green border-2 border-bg-primary" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-text-primary tracking-tight leading-none">
-              Globe<span className="text-accent-amber">IQ</span>
-            </h1>
-            <p className="text-[10px] text-text-muted mt-0.5 tracking-widest uppercase">
-              World Intelligence
-            </p>
-          </div>
-        </div>
+        <BrandLogo />
 
         {/* Right — theme toggle + sound */}
         <div className="flex items-center gap-2 pointer-events-auto">
