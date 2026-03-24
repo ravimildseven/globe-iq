@@ -21,6 +21,8 @@ import { getExchangeStatuses, openMarketCount, ExchangeStatus } from "@/lib/mark
 import { conflictsDatabase } from "@/lib/conflicts-data";
 import { getCountryTimezone } from "@/lib/country-timezones";
 import { POPULATION_DENSITY, densityColor } from "@/lib/population-data";
+import { GDP_PER_CAPITA, gdpColor } from "@/lib/gdp-per-capita";
+import { HDI, hdiColor } from "@/lib/hdi-data";
 
 const Globe = dynamic(() => import("@/components/globe/Globe"), {
   ssr: false,
@@ -246,14 +248,76 @@ export default function Home() {
     return out;
   }, []);
 
+  // GDP per capita overlay — static data
+  const gdpColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, gdp] of Object.entries(GDP_PER_CAPITA)) {
+      out[code] = gdpColor(gdp);
+    }
+    return out;
+  }, []);
+
+  // HDI overlay — static data
+  const hdiColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, hdi] of Object.entries(HDI)) {
+      out[code] = hdiColor(hdi);
+    }
+    return out;
+  }, []);
+
+  // Earthquake overlay — lazy-loaded from USGS when layer is activated
+  const [earthquakeFeatures, setEarthquakeFeatures] = useState<
+    { geometry: { coordinates: [number, number] }; properties: { mag: number } }[]
+  >([]);
+
+  useEffect(() => {
+    if (activeLayer !== "earthquakes") return;
+    fetch("/api/earthquakes")
+      .then(r => r.ok ? r.json() : [])
+      .then(setEarthquakeFeatures)
+      .catch(() => {});
+  }, [activeLayer]);
+
+  const earthquakeColors = useMemo<Record<string, { hex: string; opacity: number }>>(() => {
+    if (!earthquakeFeatures.length) return {};
+    const maxMag: Record<string, number> = {};
+    for (const f of earthquakeFeatures) {
+      const [lng, lat] = f.geometry.coordinates;
+      const mag = f.properties.mag;
+      if (!mag || mag < 0) continue;
+      // Find nearest country centroid within ~20° (~2000 km)
+      let best: string | null = null;
+      let bestDistSq = 400; // 20² — max threshold
+      for (const c of countryCentroids) {
+        const d = (c.lat - lat) ** 2 + (c.lng - lng) ** 2;
+        if (d < bestDistSq) { bestDistSq = d; best = c.code; }
+      }
+      if (!best) continue;
+      if (!maxMag[best] || mag > maxMag[best]) maxMag[best] = mag;
+    }
+    const out: Record<string, { hex: string; opacity: number }> = {};
+    for (const [code, mag] of Object.entries(maxMag)) {
+      out[code] = mag >= 7.0 ? { hex: "#7F1D1D", opacity: 0.65 }
+               : mag >= 6.0 ? { hex: "#EF4444", opacity: 0.55 }
+               : mag >= 5.5 ? { hex: "#F97316", opacity: 0.45 }
+               : mag >= 5.0 ? { hex: "#EAB308", opacity: 0.38 }
+               :               { hex: "#FDE68A", opacity: 0.30 };
+    }
+    return out;
+  }, [earthquakeFeatures]);
+
   // Pick overlay colours based on active layer
   const overlayColors = useMemo(() => {
-    if (activeLayer === "market")     return marketColors;
-    if (activeLayer === "conflicts")  return conflictColors;
-    if (activeLayer === "population") return populationColors;
-    if (activeLayer === "timezones")  return timezoneColors;
+    if (activeLayer === "market")      return marketColors;
+    if (activeLayer === "conflicts")   return conflictColors;
+    if (activeLayer === "population")  return populationColors;
+    if (activeLayer === "timezones")   return timezoneColors;
+    if (activeLayer === "gdp")         return gdpColors;
+    if (activeLayer === "hdi")         return hdiColors;
+    if (activeLayer === "earthquakes") return earthquakeColors;
     return undefined;
-  }, [activeLayer, marketColors, conflictColors, populationColors, timezoneColors]);
+  }, [activeLayer, marketColors, conflictColors, populationColors, timezoneColors, gdpColors, hdiColors, earthquakeColors]);
 
   const nightLightsMode = activeLayer === "nightlights";
 

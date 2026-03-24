@@ -45,6 +45,23 @@ export const COUNTRY_INDEX: Record<string, { ticker: string; name: string }> = {
   AE: { ticker: "^DFMGI",    name: "DFM General" },
   QA: { ticker: "^DSM",      name: "Qatar Exchange" },
   VN: { ticker: "^VNINDEX",  name: "VN-Index" },
+
+  // Additional indices
+  NZ: { ticker: "^NZ50",      name: "NZX 50" },
+  IE: { ticker: "^ISEQ",      name: "ISEQ Overall" },
+  HU: { ticker: "^BUX",       name: "Budapest SE" },
+  CL: { ticker: "^IPSA",      name: "S&P IPSA" },
+  PE: { ticker: "^SPBLPGPT",  name: "S&P BVL Peru" },
+  CO: { ticker: "^COLCAP",    name: "COLCAP Colombia" },
+  LK: { ticker: "^CSEALL",    name: "CSE All Share" },
+  OM: { ticker: "^MSM30",     name: "MSM 30 Oman" },
+  KW: { ticker: "^KWX",       name: "Kuwait Premier" },
+  BH: { ticker: "^BASI",      name: "Bahrain All Share" },
+  MA: { ticker: "^MASI",      name: "MASI Casablanca" },
+  BD: { ticker: "^DSEX",      name: "DSEX Bangladesh" },
+  RS: { ticker: "^BELEX15",   name: "BELEX 15" },
+  UA: { ticker: "^PFTS",      name: "PFTS Ukraine" },
+  KE: { ticker: "^NSE20",     name: "NSE 20 Kenya" },
 };
 
 export interface MarketQuote {

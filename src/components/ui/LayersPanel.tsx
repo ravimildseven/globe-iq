@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, TrendingUp, Swords, Users, Clock, Moon, X } from "lucide-react";
+import { Layers, TrendingUp, Swords, Users, Clock, Moon, X, DollarSign, Award, Zap } from "lucide-react";
 
-export type LayerId = "market" | "conflicts" | "population" | "timezones" | "nightlights";
+export type LayerId =
+  | "market"
+  | "conflicts"
+  | "population"
+  | "timezones"
+  | "nightlights"
+  | "gdp"
+  | "hdi"
+  | "earthquakes";
 
 interface LayerConfig {
   id: LayerId;
@@ -82,12 +90,62 @@ const NIGHT_LEGEND = (
   <p className="text-[9px] text-text-muted mt-1">City lights amplified on night side</p>
 );
 
+const GDP_LEGEND = (
+  <div className="mt-1.5">
+    <div className="flex gap-0 rounded-sm overflow-hidden h-2" style={{ width: 140 }}>
+      {["#7F1D1D","#DC2626","#EA580C","#CA8A04","#65A30D","#16A34A","#166534"].map((c, i) => (
+        <div key={i} className="flex-1" style={{ background: c }} />
+      ))}
+    </div>
+    <div className="flex justify-between mt-0.5">
+      <span className="text-[9px] text-text-muted">&lt;$1k</span>
+      <span className="text-[9px] text-text-muted">$75k+</span>
+    </div>
+  </div>
+);
+
+const HDI_LEGEND = (
+  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+    {[
+      { color: "#166534", label: "Very High" },
+      { color: "#22C55E", label: "High" },
+      { color: "#EAB308", label: "Medium" },
+      { color: "#EF4444", label: "Low" },
+    ].map(s => (
+      <span key={s.label} className="flex items-center gap-0.5">
+        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+        <span className="text-[9px] text-text-muted">{s.label}</span>
+      </span>
+    ))}
+  </div>
+);
+
+const EQ_LEGEND = (
+  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+    {[
+      { color: "#FDE68A", label: "M4.5+" },
+      { color: "#EAB308", label: "M5+" },
+      { color: "#F97316", label: "M5.5+" },
+      { color: "#EF4444", label: "M6+" },
+      { color: "#7F1D1D", label: "M7+" },
+    ].map(s => (
+      <span key={s.label} className="flex items-center gap-0.5">
+        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+        <span className="text-[9px] text-text-muted">{s.label}</span>
+      </span>
+    ))}
+  </div>
+);
+
 const LAYERS: LayerConfig[] = [
-  { id: "market",      label: "Stock Markets",      icon: <TrendingUp size={13} />, description: "Live index heat map",   legend: MARKET_LEGEND },
-  { id: "conflicts",   label: "Conflict Zones",     icon: <Swords     size={13} />, description: "Active wars & tensions", legend: CONFLICT_LEGEND },
-  { id: "population",  label: "Population Density", icon: <Users      size={13} />, description: "Persons per km²",       legend: POPULATION_LEGEND },
-  { id: "timezones",   label: "Time Zones",         icon: <Clock      size={13} />, description: "UTC offset bands",      legend: TIMEZONE_LEGEND },
-  { id: "nightlights", label: "Night Lights",       icon: <Moon       size={13} />, description: "City glow amplified",   legend: NIGHT_LEGEND },
+  { id: "market",      label: "Stock Markets",      icon: <TrendingUp  size={13} />, description: "Live index heat map",        legend: MARKET_LEGEND },
+  { id: "gdp",         label: "GDP per Capita",      icon: <DollarSign  size={13} />, description: "Economic output per person",  legend: GDP_LEGEND },
+  { id: "hdi",         label: "Human Dev. Index",    icon: <Award       size={13} />, description: "Health, education & income",  legend: HDI_LEGEND },
+  { id: "conflicts",   label: "Conflict Zones",      icon: <Swords      size={13} />, description: "Active wars & tensions",      legend: CONFLICT_LEGEND },
+  { id: "earthquakes", label: "Seismic Activity",    icon: <Zap         size={13} />, description: "M4.5+ quakes · past 7 days",  legend: EQ_LEGEND },
+  { id: "population",  label: "Population Density",  icon: <Users       size={13} />, description: "Persons per km²",             legend: POPULATION_LEGEND },
+  { id: "timezones",   label: "Time Zones",          icon: <Clock       size={13} />, description: "UTC offset bands",            legend: TIMEZONE_LEGEND },
+  { id: "nightlights", label: "Night Lights",        icon: <Moon        size={13} />, description: "City glow amplified",         legend: NIGHT_LEGEND },
 ];
 
 interface LayersPanelProps {

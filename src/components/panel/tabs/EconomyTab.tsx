@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { EconomyData } from "@/lib/types";
 import { MarketQuote } from "@/lib/marketIndices";
+import { CommodityQuote } from "@/lib/commodities";
 import { getExchangeStatuses, ExchangeStatus } from "@/lib/market-hours";
 import {
   TrendingUp,
@@ -17,6 +18,7 @@ import {
   Database,
   Activity,
   Clock,
+  Flame,
 } from "lucide-react";
 
 // ─── Response type matching the API ─────────────────────────────────────────
@@ -126,6 +128,69 @@ function Skeletons() {
       <div className="rounded-xl p-4 bg-bg-card border border-border-subtle">
         <div className="skeleton h-2.5 w-20 rounded mb-3" />
         <div className="skeleton h-7 w-32 rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Global Markets (commodities + crypto) ───────────────────────────────────
+function GlobalMarketsSection() {
+  const [data, setData] = useState<CommodityQuote[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/commodities")
+      .then(r => r.ok ? r.json() : [])
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
+        <div className="skeleton h-2.5 w-28 rounded mb-3" />
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="skeleton h-4 w-full rounded mb-2" />
+        ))}
+      </div>
+    );
+  }
+  if (!data.length) return null;
+
+  return (
+    <div className="bg-bg-card border border-border-subtle rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Flame size={13} className="text-accent-amber" />
+        <span className="text-[10px] text-text-muted uppercase tracking-widest font-medium">
+          Global Markets
+        </span>
+      </div>
+      <div className="space-y-2.5">
+        {data.map(c => {
+          const up = c.changePercent >= 0;
+          const sign = up ? "+" : "";
+          const formattedPrice = c.price >= 10000
+            ? c.price.toLocaleString("en", { maximumFractionDigits: 0 })
+            : c.price >= 100
+              ? c.price.toLocaleString("en", { maximumFractionDigits: 2 })
+              : c.price.toFixed(2);
+          return (
+            <div key={c.ticker} className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="text-xs text-text-primary font-medium">{c.name}</span>
+                <span className="text-[10px] text-text-muted ml-1.5">{c.unit}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs font-mono text-text-primary">{formattedPrice}</span>
+                <span className={`text-[11px] font-mono flex items-center gap-0.5 ${up ? "text-accent-green" : "text-accent-red"}`}>
+                  {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                  {sign}{c.changePercent.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -334,6 +399,9 @@ export default function EconomyTab({
           </div>
         </div>
       )}
+
+      {/* Global Markets — commodities & crypto */}
+      <GlobalMarketsSection />
 
       {/* Market Hours */}
       <MarketHoursSection />
