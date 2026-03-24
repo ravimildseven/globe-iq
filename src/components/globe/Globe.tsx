@@ -12,6 +12,8 @@ import {
 import { TERRITORIES, TERRITORY_BY_CODE, type Territory } from "@/lib/territoriesData";
 import { CAPITAL_CITIES } from "@/lib/capitals";
 import { playHoverSound } from "@/lib/sound-effects";
+import { FlightArc } from "./FlightArcs";
+import { useHomeCountry } from "@/lib/homeCountry";
 
 // Globe texture URLs — from three-globe@2.34.1 unpkg CDN (same library source)
 const TEX_DAY_DARK  = "https://unpkg.com/three-globe@2.34.1/example/img/earth-blue-marble.jpg";
@@ -801,6 +803,9 @@ function EarthGlobe({
   overlayColors?: Record<string, { hex: string; opacity: number }>;
   nightLightsMode?: boolean;
 }) {
+  const { homeCountry } = useHomeCountry();
+  const originCentroid = useMemo(() => countryCentroids.find(c => c.code === homeCountry) || { code: "IN", lat: 22.0, lng: 79.0, name: "India" }, [homeCountry]);
+  
   const [shapes, setShapes]           = useState<CountryShape[]>([]);
   const [hoveredShape, setHoveredShape] = useState<CountryShape | null>(null);
   const [hoveredCentroid, setHoveredCentroid] = useState<CountryCentroid | null>(null);
@@ -995,6 +1000,14 @@ function EarthGlobe({
       {/* Selected-country label pinned at centroid (amber pill) */}
       {selectedCountry && (
         <SelectedLabel country={selectedCountry} />
+      )}
+
+      {/* Flight Arc from home country to selected */}
+      {selectedCountry && originCentroid && selectedCountry.code !== originCentroid.code && (
+        <FlightArc 
+          source={{ lat: originCentroid.lat, lng: originCentroid.lng }}
+          destination={{ lat: selectedCountry.lat, lng: selectedCountry.lng }} 
+        />
       )}
 
       {/* Always-visible muted labels for major countries (helps mobile) */}

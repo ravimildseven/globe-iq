@@ -15,6 +15,7 @@ import NewsTab from "./tabs/NewsTab";
 import EconomyTab from "./tabs/EconomyTab";
 import ConflictsTab from "./tabs/ConflictsTab";
 import SummaryStrip from "./SummaryStrip";
+import { getSafetyScore } from "@/lib/safetyScore";
 
 interface InfoPanelProps {
   country: CountryCentroid;
@@ -138,6 +139,7 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
 
   const hasConflicts = (conflictsDatabase[country.code]?.length ?? 0) > 0;
   const showPhoto    = heroImageUrl && heroLoaded;
+  const safety       = getSafetyScore(country.code);
 
   return (
     <>
@@ -212,50 +214,94 @@ export default function InfoPanel({ country, onClose, marketData }: InfoPanelPro
           </button>
 
           {/* Country info — anchored to bottom of hero */}
-          <div className="absolute bottom-0 inset-x-0 px-5 pb-4 pt-10 flex items-end gap-3">
-            {/* Flag */}
-            <div className="flex-shrink-0">
-              {countryInfo?.flagUrl ? (
-                <img
-                  src={countryInfo.flagUrl}
-                  alt={`${countryInfo.name} flag`}
-                  className={`w-14 h-10 rounded-md object-cover shadow-lg ${
-                    showPhoto ? "border border-white/25" : "border border-border"
-                  }`}
-                />
-              ) : (
-                <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
-                  {countryInfo?.flag || "🌍"}
+          <div className="absolute bottom-0 inset-x-0 px-5 pb-4 pt-10 flex items-end justify-between gap-3">
+            <div className="flex items-end gap-3 min-w-0">
+              {/* Flag */}
+              <div className="flex-shrink-0">
+                {countryInfo?.flagUrl ? (
+                  <img
+                    src={countryInfo.flagUrl}
+                    alt={`${countryInfo.name} flag`}
+                    className={`w-14 h-10 rounded-md object-cover shadow-lg ${
+                      showPhoto ? "border border-white/25" : "border border-border"
+                    }`}
+                  />
+                ) : (
+                  <div className="w-14 h-10 rounded-md bg-bg-elevated border border-border flex items-center justify-center text-2xl">
+                    {countryInfo?.flag || "🌍"}
+                  </div>
+                )}
+              </div>
+
+              {/* Name + meta */}
+              <div className="min-w-0">
+                <h2 className={`text-lg font-bold leading-tight drop-shadow-sm truncate ${showPhoto ? "text-white" : "text-text-primary"}`}>
+                  {loadingInfo
+                    ? <span className="skeleton inline-block w-32 h-5 rounded" />
+                    : countryInfo?.name || country.name}
+                </h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {loadingInfo
+                    ? <span className="skeleton inline-block w-24 h-3.5 rounded" />
+                    : (
+                      <>
+                        <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
+                          {countryInfo?.capital}
+                        </span>
+                        {countryInfo?.region && (
+                          <>
+                            <ChevronRight size={10} className={showPhoto ? "text-white/35" : "text-text-muted/40"} />
+                            <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
+                              {countryInfo.region}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    )}
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Name + meta */}
-            <div className="min-w-0">
-              <h2 className={`text-lg font-bold leading-tight drop-shadow-sm truncate ${showPhoto ? "text-white" : "text-text-primary"}`}>
-                {loadingInfo
-                  ? <span className="skeleton inline-block w-32 h-5 rounded" />
-                  : countryInfo?.name || country.name}
-              </h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {loadingInfo
-                  ? <span className="skeleton inline-block w-24 h-3.5 rounded" />
-                  : (
-                    <>
-                      <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
-                        {countryInfo?.capital}
-                      </span>
-                      {countryInfo?.region && (
-                        <>
-                          <ChevronRight size={10} className={showPhoto ? "text-white/35" : "text-text-muted/40"} />
-                          <span className={`text-xs ${showPhoto ? "text-white/70" : "text-text-muted"}`}>
-                            {countryInfo.region}
-                          </span>
-                        </>
-                      )}
-                    </>
-                  )}
-              </div>
+            {/* Safety Score Gauge */}
+            <div 
+              className="flex flex-col items-center gap-1 flex-shrink-0 mb-0.5 group cursor-help relative"
+            >
+               <div className="relative w-[38px] h-[38px] flex items-center justify-center rounded-full bg-black/30 backdrop-blur-md border border-white/10 shadow-lg">
+                 <svg className="absolute inset-0 w-full h-full -rotate-90">
+                   <circle cx="19" cy="19" r="16" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/20" />
+                   <circle cx="19" cy="19" r="16" fill="none" stroke={safety.colorHex} strokeWidth="2.5" 
+                      strokeDasharray="100.5" strokeDashoffset={100.5 - (safety.score / 100) * 100.5} 
+                      strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                 </svg>
+                 <span className="text-[12px] font-bold" style={{ color: safety.colorHex, textShadow: '0 0 4px rgba(0,0,0,0.8)' }}>
+                   {safety.score}
+                 </span>
+               </div>
+               <span className="text-[7.5px] uppercase tracking-[0.08em] font-bold text-white/90 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                  {safety.level}
+               </span>
+               
+               {/* Custom Tooltip via Fixed Positioning to break out of overflow-hidden */}
+               <div className="fixed sm:top-20 sm:right-[460px] sm:w-[300px] sm:bottom-auto sm:left-auto bottom-8 left-4 right-4 p-5 rounded-2xl bg-[#030712] border border-white/20 shadow-[0_24px_64px_rgba(0,0,0,0.95)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[99999] pointer-events-none">
+                 <p className="text-[12px] font-bold text-white mb-3.5 uppercase tracking-wide border-b border-white/20 pb-2.5 flex items-center justify-between">
+                   <span>Safety Breakdown</span>
+                   <span className="text-white/80 text-[11px] font-mono font-medium">{safety.score}/100</span>
+                 </p>
+                 <ul className="space-y-3 mb-4">
+                   {safety.breakdown.map((item, idx) => {
+                     const isNegative = item.startsWith('-');
+                     return (
+                       <li key={idx} className="text-[12px] leading-snug flex items-start gap-2.5 text-left">
+                         <span className="mt-[2px] opacity-60 flex-shrink-0 text-white">•</span>
+                         <span className={`font-semibold ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>{item}</span>
+                       </li>
+                     );
+                   })}
+                 </ul>
+                 <p className="border-t border-white/20 pt-3 text-[10px] text-left text-slate-400 leading-tight">
+                   Aggregates global travel advisories, infrastructure index, and active geopolitical conflicts.
+                 </p>
+               </div>
             </div>
           </div>
         </div>
